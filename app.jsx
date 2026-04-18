@@ -1,4 +1,5 @@
-/* Main app for Wiener Schnitzler. */
+/* Main app for Wiener Schnitzler — datenjournalistische Single-Page-Site.
+   Reads window.SCHNITZLER_* globals produced by data/schnitzler.js. */
 
 const { useState, useMemo, useEffect, useRef, useCallback } = React;
 
@@ -12,19 +13,16 @@ function fmtDateDE(iso) {
   const d = new Date(iso);
   return `${d.getDate()}. ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
-function fmtNum(n) { return n.toLocaleString("de-AT"); }
+function fmtNum(n) { return (n ?? 0).toLocaleString("de-AT"); }
 function ageAt(iso) {
   const d = new Date(iso);
   let a = d.getFullYear() - BIRTH.getFullYear();
   if (d.getMonth() < BIRTH.getMonth() || (d.getMonth() === BIRTH.getMonth() && d.getDate() < BIRTH.getDate())) a--;
   return a;
 }
-// simple rect-project
-function project(lon, lat, W, H, bbox) {
-  const [minL, maxL, minLa, maxLa] = bbox;
-  const x = ((lon - minL) / (maxL - minL)) * W;
-  const y = H - ((lat - minLa) / (maxLa - minLa)) * H;
-  return [x, y];
+function describeKind(kind, type) {
+  if (kind && kind !== "Sonstiges") return kind;
+  return type === "p" ? "Ort" : "Adresse / Gebäude";
 }
 
 // ---------- Header ----------
@@ -52,7 +50,7 @@ function Masthead({ activeSection, onNav, onTweaks }) {
           </nav>
           <div className="meta-strip">
             <span>Stand <b>April 2026</b></span>
-            <span>v<b>2.0</b></span>
+            <span>v<b>2.1</b></span>
             <span onClick={onTweaks} style={{cursor: "pointer"}}>⚙ Anpassen</span>
           </div>
         </div>
@@ -63,6 +61,8 @@ function Masthead({ activeSection, onNav, onTweaks }) {
 
 // ---------- Hero ----------
 function Hero() {
+  const stays = window.SCHNITZLER_TOTAL_STAYS;
+  const places = window.SCHNITZLER_TOTAL_PLACES;
   return (
     <section className="sec" style={{borderTop: "none", paddingTop: 52}}>
       <div className="wrap">
@@ -72,8 +72,9 @@ function Hero() {
         </h1>
         <p className="dek">
           Aus Arthur Schnitzlers Tagebüchern, Korrespondenzen und Notizen rekonstruiert: über
-          47.000 Aufenthalte an knapp 4.950 Orten, taggenau georeferenziert — von der Praterstraße
-          bis nach Stockholm, vom Café Griensteidl bis zum Südbahnhotel am Semmering.
+          {" "}{fmtNum(stays)} Aufenthalte an {fmtNum(places)} Orten, taggenau georeferenziert — von
+          der Praterstraße bis nach Stockholm, vom Café Griensteidl bis zum Südbahnhotel am
+          Semmering.
         </p>
         <div className="byline">
           <span>Hg. v. <b>Wiener Moderne Verein</b></span>
@@ -88,16 +89,18 @@ function Hero() {
 
 // ---------- Big numbers ----------
 function BigNumbers() {
-  const stays = window.SCHNITZLER_STAYS.length;
+  const stays    = window.SCHNITZLER_TOTAL_STAYS;
+  const places   = window.SCHNITZLER_TOTAL_PLACES;
+  const countries= window.SCHNITZLER_TOTAL_COUNTRIES;
   return (
     <div className="wrap">
       <div className="big-numbers">
         <div>
-          <div className="num">47 149</div>
+          <div className="num">{fmtNum(stays)}</div>
           <div className="lab">dokumentierte Aufenthalte</div>
         </div>
         <div>
-          <div className="num">4 947</div>
+          <div className="num">{fmtNum(places)}</div>
           <div className="lab">distinkte Orte, georeferenziert</div>
         </div>
         <div>
@@ -105,7 +108,7 @@ function BigNumbers() {
           <div className="lab">Lebensspanne · 15.5.1862 – 21.10.1931</div>
         </div>
         <div>
-          <div className="num">17 <em>Länder</em></div>
+          <div className="num">{fmtNum(countries)} <em>Länder</em></div>
           <div className="lab">besucht · Schwerpunkt Mitteleuropa</div>
         </div>
       </div>
@@ -113,107 +116,101 @@ function BigNumbers() {
   );
 }
 
-// ---------- Map ----------
-function WorldMap({ onSelectPlace, activeId }) {
-  const places = window.SCHNITZLER_PLACES.filter(p => p.days > 0);
-  // Europe-focused bbox: lon -5..20, lat 40..60
-  const W = 1240, H = 698;
-  const bbox = [-8, 22, 40, 62]; // minLon, maxLon, minLat, maxLat
-  const [, setHover] = useState(null);
-  const dots = places.map(p => {
-    const [x, y] = project(p.lon, p.lat, W, H, bbox);
-    const r = Math.max(3, Math.min(22, Math.sqrt(p.days) * 0.55));
-    return { ...p, x, y, r };
-  });
+// ---------- Leaflet helper ----------
+function useLeafletReady() {
+  const [ready, setReady] = useState(typeof L !== "undefined");
+  useEffect(() => {
+    if (typeof L !== "undefined") { setReady(true); return; }
+    const t = setInterval(() => {
+      if (typeof L !== "undefined") { setReady(true); clearInterval(t); }
+    }, 60);
+    return () => clearInterval(t);
+  }, []);
+  return ready;
+}
 
-  // Country outlines: very minimal rect/polyline silhouettes drawn as guides
-  // We'll draw parallels + meridians + dotted country blobs for atmosphere.
-  const gridLons = [0, 5, 10, 15, 20, 25, 30];
-  const gridLats = [35, 40, 45, 50, 55, 60];
+// ---------- World map (Leaflet) ----------
+function WorldMap({ onSelectPlace, activeId }) {
+  const elRef = useRef(null);
+  const mapRef = useRef(null);
+  const layerRef = useRef(null);
+  const markersById = useRef({});
+  const ready = useLeafletReady();
+  const places = useMemo(() => window.SCHNITZLER_PLACES.filter(p => p.days > 0), []);
+
+  // Initialize once.
+  useEffect(() => {
+    if (!ready || mapRef.current || !elRef.current) return;
+    const map = L.map(elRef.current, {
+      zoomControl: true, scrollWheelZoom: true, worldCopyJump: true,
+      preferCanvas: true, attributionControl: true
+    }).setView([48.21, 16.37], 4);
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+      attribution: "© OpenStreetMap-Mitwirkende · © CARTO",
+      maxZoom: 18, subdomains: "abcd"
+    }).addTo(map);
+    mapRef.current = map;
+  }, [ready]);
+
+  // (Re-)build markers on data / activeId change.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (layerRef.current) layerRef.current.remove();
+    const layer = L.layerGroup().addTo(map);
+    layerRef.current = layer;
+    markersById.current = {};
+
+    const bounds = [];
+    for (const p of places) {
+      const r = Math.max(4, Math.min(28, Math.sqrt(p.days) * 0.8));
+      const cls = "schnitzler-dot " + (p.type === "p" ? "is-place" : "is-address") + (p.id === activeId ? " is-active" : "");
+      const icon = L.divIcon({
+        className: "",
+        html: `<div class="${cls}" style="width:${r*2}px;height:${r*2}px"></div>`,
+        iconSize: [r*2, r*2],
+        iconAnchor: [r, r]
+      });
+      const m = L.marker([p.lat, p.lon], { icon, riseOnHover: true });
+      m.bindPopup(
+        `<div class="pp-name">${p.name}</div>` +
+        `<div class="pp-context">${[p.parent, p.country].filter(Boolean).join(" · ")} · ${describeKind(p.kind, p.type)}</div>` +
+        `<div class="pp-stat"><b>${fmtNum(p.days)}</b> Tage · ${p.firstVisit ? p.firstVisit.slice(0,4) : "—"}–${p.lastVisit ? p.lastVisit.slice(0,4) : "—"}</div>`,
+        { className: "schnitzler-popup", closeButton: false, autoPan: true }
+      );
+      m.on("click", () => onSelectPlace(p.id));
+      m.addTo(layer);
+      markersById.current[p.id] = m;
+      bounds.push([p.lat, p.lon]);
+    }
+    if (bounds.length && !mapRef.current._initialFitDone) {
+      try { mapRef.current.fitBounds(bounds, { padding: [40, 40], maxZoom: 6 }); } catch (e) {}
+      mapRef.current._initialFitDone = true;
+    }
+  }, [ready, places, activeId, onSelectPlace]);
+
+  // Pan to active marker.
+  useEffect(() => {
+    if (!mapRef.current || !activeId) return;
+    const p = window.SCHNITZLER_BY_ID[activeId];
+    const m = markersById.current[activeId];
+    if (!p || !m) return;
+    mapRef.current.flyTo([p.lat, p.lon], Math.max(mapRef.current.getZoom(), 6), { duration: 0.8 });
+    m.openPopup();
+  }, [activeId]);
 
   return (
     <div className="map-stage">
-      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet">
-        <defs>
-          <pattern id="paperDots" width="6" height="6" patternUnits="userSpaceOnUse">
-            <circle cx="1" cy="1" r="0.6" fill="#C2BAA5" opacity="0.5"/>
-          </pattern>
-        </defs>
-        <rect width={W} height={H} fill="url(#paperDots)"/>
-
-        {/* graticule */}
-        {gridLons.map(l => {
-          const [x] = project(l, 45, W, H, bbox);
-          return <line key={"ln"+l} x1={x} y1="0" x2={x} y2={H} stroke="#C2BAA5" strokeWidth="0.5" strokeDasharray="2 4"/>;
-        })}
-        {gridLats.map(l => {
-          const [, y] = project(10, l, W, H, bbox);
-          return <line key={"lt"+l} x1="0" y1={y} x2={W} y2={y} stroke="#C2BAA5" strokeWidth="0.5" strokeDasharray="2 4"/>;
-        })}
-
-        {/* Coarse land silhouettes (highly stylized, hand-placed polygons) */}
-        <g fill="#EDE7D8" stroke="#C2BAA5" strokeWidth="0.8">
-          {/* Mitteleuropa blob */}
-          <polygon points={(() => {
-            const pts = [[6,54],[14,54.5],[18,53.5],[20,51.5],[22,49.5],[21,47.5],[18,46.5],[14,46],[11,45.5],[7,46.2],[6,48.5],[4.5,50.5],[5,52.5]];
-            return pts.map(([l,la]) => project(l,la,W,H,bbox).join(",")).join(" ");
-          })()}/>
-          {/* Italy */}
-          <polygon points={(() => {
-            const pts = [[7.5,45.5],[10,46],[13.5,46],[14,42],[17,40.5],[18,40],[15,39],[12,41],[11,43],[9,44],[7.5,45.5]];
-            return pts.map(([l,la]) => project(l,la,W,H,bbox).join(",")).join(" ");
-          })()}/>
-          {/* France */}
-          <polygon points={(() => {
-            const pts = [[-4,48.5],[0,49.5],[4,50.5],[7,48.5],[7,46],[5.5,44],[3,43],[-1.5,43.5],[-4,46],[-4,48.5]];
-            return pts.map(([l,la]) => project(l,la,W,H,bbox).join(",")).join(" ");
-          })()}/>
-          {/* UK */}
-          <polygon points={(() => {
-            const pts = [[-5,54],[-3,57],[-1.5,58],[1,56],[1.5,53],[0,51],[-4,50.5],[-5,52],[-5,54]];
-            return pts.map(([l,la]) => project(l,la,W,H,bbox).join(",")).join(" ");
-          })()}/>
-          {/* Scandinavia */}
-          <polygon points={(() => {
-            const pts = [[5,58],[8,60],[12,61.5],[18,61.5],[23,60],[19,58],[13,56],[9.5,55],[8,56.5],[5,58]];
-            return pts.map(([l,la]) => project(l,la,W,H,bbox).join(",")).join(" ");
-          })()}/>
-          {/* Iberia */}
-          <polygon points={(() => {
-            const pts = [[-8,43.5],[-3,44],[2,42.5],[3,40],[-1,37],[-6,37],[-8,40],[-8,43.5]];
-            return pts.map(([l,la]) => project(l,la,W,H,bbox).join(",")).join(" ");
-          })()}/>
-        </g>
-
-        {/* place dots */}
-        {dots.map(p => (
-          <g key={p.id}>
-            <circle
-              className={`dot ${activeId === p.id ? "active" : ""}`}
-              cx={p.x} cy={p.y} r={p.r}
-              fill={p.type === "p" ? "#1A1814" : "var(--accent)"}
-              fillOpacity={p.type === "p" ? 0.85 : 0.9}
-              onMouseEnter={() => setHover(p.id)}
-              onMouseLeave={() => setHover(null)}
-              onClick={() => onSelectPlace(p.id)}
-            />
-            {p.days > 200 && (
-              <text className="dot-label" x={p.x + p.r + 6} y={p.y + 3}>{p.name}</text>
-            )}
-          </g>
-        ))}
-      </svg>
-
+      <div className="leaflet-stage" ref={elRef} aria-label="Karte aller dokumentierten Aufenthaltsorte"></div>
       <div className="map-legend">
         <h4>Legende</h4>
-        <div className="map-legend-row"><span className="map-legend-dot"></span><span>Haus · Straße · Lokal</span></div>
-        <div className="map-legend-row"><span className="map-legend-dot" style={{background:"var(--ink)"}}></span><span>Stadt · Land</span></div>
-        <div className="map-legend-row"><span className="map-legend-dot small"></span><span>Flächengröße ≈ Aufenthaltstage</span></div>
+        <div className="map-legend-row"><span className="map-legend-dot"></span><span>Adresse · Gebäude · Lokal</span></div>
+        <div className="map-legend-row"><span className="map-legend-dot" style={{background:"var(--ink)"}}></span><span>Stadt · Land · Region</span></div>
+        <div className="map-legend-row"><span className="map-legend-dot small"></span><span>Fläche ≈ √Aufenthaltstage</span></div>
       </div>
-
       <div className="map-controls">
-        <button title="Zentrum Wien">⌖</button>
-        <button title="Volltext">⌕</button>
+        <button title="Zentrum Wien" onClick={() => mapRef.current && mapRef.current.flyTo([48.21,16.37], 11, {duration:0.8})}>⌖</button>
+        <button title="Gesamteuropa" onClick={() => mapRef.current && mapRef.current.flyTo([50, 12], 4, {duration:0.8})}>⌕</button>
       </div>
     </div>
   );
@@ -221,7 +218,8 @@ function WorldMap({ onSelectPlace, activeId }) {
 
 // ---------- Section 1: Karte ----------
 function SectionMap({ setActivePlaceId, activeId }) {
-  const total = window.SCHNITZLER_PLACES.reduce((s,p) => s + (p.days || 0), 0);
+  const places = window.SCHNITZLER_PLACES;
+  const total = places.reduce((s,p) => s + (p.days || 0), 0);
   return (
     <section className="sec" id="karte">
       <div className="wrap-wide">
@@ -233,12 +231,13 @@ function SectionMap({ setActivePlaceId, activeId }) {
             </h2>
             <p className="sec-lede" style={{marginTop: 16}}>
               Jeder Punkt markiert einen Ort mit mindestens einem belegten Aufenthaltstag. Die Fläche
-              skaliert mit der Summe der Tage. Wien, Semmering und Altaussee dominieren — kurze Reisen
-              nach Italien, Deutschland und Skandinavien zeichnen das Netz der literarischen Moderne.
+              skaliert mit der Wurzel der Tage. Wien dominiert; deutlich sichtbar werden die
+              Sommerfrische-Achsen Semmering–Altaussee–Bad Ischl, die Theaterstationen Berlin und
+              München, und einzelne Reisen nach Italien, Frankreich, Skandinavien.
             </p>
           </div>
           <div className="sec-meta">
-            Gesamt<br/><b style={{color:"var(--ink)", fontSize: 14}}>{fmtNum(total)} Tage</b>
+            Tage gesamt<br/><b style={{color:"var(--ink)", fontSize: 14}}>{fmtNum(total)}</b>
           </div>
         </div>
         <WorldMap onSelectPlace={setActivePlaceId} activeId={activeId} />
@@ -250,25 +249,18 @@ function SectionMap({ setActivePlaceId, activeId }) {
 
 // ---------- Timeline ----------
 function SectionTimeline({ onJumpDate }) {
-  const years = [];
-  for (let y = 1862; y <= 1931; y++) years.push(y);
-  // yearly count proxy
-  const perYear = {};
-  window.SCHNITZLER_STAYS.forEach(s => {
-    const y = parseInt(s.start.slice(0,4));
-    perYear[y] = (perYear[y] || 0) + 1;
-  });
-  // Create synthetic density based on life phases
-  function density(y) {
-    let base = 4;
-    if (y >= 1879 && y <= 1893) base = 8; // studies/medicine
-    if (y >= 1893 && y <= 1914) base = 14; // literary peak
-    if (y >= 1914 && y <= 1918) base = 9;  // wartime
-    if (y >= 1919 && y <= 1928) base = 12; // late work
-    if (y >= 1929) base = 6;
-    return base + (perYear[y] || 0) + ((y * 17) % 5);
-  }
-  const max = Math.max(...years.map(density));
+  const years = useMemo(() => {
+    const a = []; for (let y = 1862; y <= 1931; y++) a.push(y); return a;
+  }, []);
+  const perYear = useMemo(() => {
+    const out = {};
+    for (const s of window.SCHNITZLER_STAYS) {
+      const y = parseInt(s.d.slice(0, 4), 10);
+      out[y] = (out[y] || 0) + 1;
+    }
+    return out;
+  }, []);
+  const max = Math.max(1, ...years.map(y => perYear[y] || 0));
   const [hover, setHover] = useState(null);
 
   const events = [
@@ -292,7 +284,7 @@ function SectionTimeline({ onJumpDate }) {
           <div>
             <h2 className="sec-title">69 Jahre — <em>taggenau.</em></h2>
             <p className="sec-lede" style={{marginTop: 16}}>
-              Jede Säule ein Kalenderjahr: die Höhe zeigt die Anzahl dokumentierter Ortswechsel.
+              Jede Säule ein Kalenderjahr: die Höhe zeigt die Anzahl belegter (Ort × Tag)-Paare.
               Die dichten Phasen fallen mit dem literarischen Werk zusammen — Jung-Wien, Anatol,
               Reigen, Fräulein Else.
             </p>
@@ -304,15 +296,15 @@ function SectionTimeline({ onJumpDate }) {
 
         <div className="timeline-shell">
           <div className="timeline-legend">
-            <span>Ortswechsel pro Jahr</span>
+            <span>Belegte Ort × Tag-Paare pro Jahr</span>
             <span>
-              {hover ? <>Jahr <b style={{color:"var(--ink)"}}>{hover.y}</b> · {hover.v} Bewegungen · Schnitzler {hover.y - 1862} J.</> : "Bewegen Sie sich über die Säulen"}
+              {hover ? <>Jahr <b style={{color:"var(--ink)"}}>{hover.y}</b> · {fmtNum(hover.v)} Belege · Schnitzler {hover.y - 1862} J.</> : "Bewegen Sie sich über die Säulen"}
             </span>
           </div>
           <div className="timeline-scrubber">
             <div className="timeline-axis">
               {years.map((y,i) => {
-                const v = density(y);
+                const v = perYear[y] || 0;
                 const h = (v / max) * 100;
                 const left = (i / (years.length - 1)) * 100;
                 const width = 100 / years.length * 0.85;
@@ -351,28 +343,20 @@ function SectionTimeline({ onJumpDate }) {
 
 // ---------- On this day ----------
 function SectionToday({ date, setDate }) {
-  const stay = useMemo(() => {
-    // find stay containing date
-    const d = new Date(date).getTime();
-    const hits = window.SCHNITZLER_STAYS.filter(s =>
-      new Date(s.start).getTime() <= d && new Date(s.end).getTime() >= d
-    ).sort((a,b) => {
-      // prefer more specific / later
-      const aSpan = new Date(a.end) - new Date(a.start);
-      const bSpan = new Date(b.end) - new Date(b.start);
-      return aSpan - bSpan;
-    });
-    return hits[0] || null;
+  // For the requested ISO date, find all places visited that day; prefer specific (a) over generic (p).
+  const stays = useMemo(() => {
+    const ids = window.SCHNITZLER_BY_DATE[date] || [];
+    return ids.map(id => window.SCHNITZLER_BY_ID[id]).filter(Boolean);
   }, [date]);
-
-  const place = stay ? window.SCHNITZLER_BY_ID[stay.placeId] : null;
+  const place = stays[0] || null;
+  const others = stays.slice(1);
 
   const quickDates = [
     ["1862-05-15","Geburt"],
     ["1885-05-30","Promotion"],
-    ["1895-10-09","Liebelei"],
+    ["1895-10-09","Liebelei UA"],
     ["1903-08-26","Heirat"],
-    ["1910-04-01","Einzug Sternwarte"],
+    ["1910-04-01","Einzug Sternwartestr."],
     ["1921-12-23","Reigen-Prozess"],
     ["1931-10-21","Todestag"]
   ];
@@ -389,9 +373,9 @@ function SectionToday({ date, setDate }) {
               Wählen Sie einen Tag <em>zwischen 1862 und 1931.</em>
             </h2>
             <p className="sec-lede" style={{marginTop: 16}}>
-              Der Datensatz erlaubt für fast jeden Kalendertag eine Zuordnung. Hier sehen Sie,
-              wo Schnitzler sich an Ihrem gewählten Datum mit hoher Wahrscheinlichkeit aufhielt
-              — und was zur selben Zeit geschah.
+              Der Datensatz erlaubt für rund drei Viertel aller Kalendertage eine Zuordnung. Hier
+              sehen Sie, wo Schnitzler sich an Ihrem gewählten Datum belegt aufhielt — und welche
+              spezifischeren Adressen am selben Tag dokumentiert sind.
             </p>
           </div>
           <div className="sec-meta">
@@ -410,12 +394,14 @@ function SectionToday({ date, setDate }) {
                 onChange={e => setDate(e.target.value)}
               />
               <button onClick={() => {
-                const d = new Date(BIRTH.getTime() + Math.random() * (DEATH.getTime() - BIRTH.getTime()));
-                setDate(d.toISOString().slice(0,10));
+                // Pick a random *documented* date so the user always sees content.
+                const keys = Object.keys(window.SCHNITZLER_BY_DATE);
+                setDate(keys[Math.floor(Math.random() * keys.length)]);
               }}>Zufallsdatum</button>
               <button onClick={() => {
-                // 100 years ago from today
-                setDate("1926-04-18");
+                const today = new Date();
+                const iso = `1926-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`;
+                setDate(iso);
               }}>Vor 100 Jahren</button>
             </div>
             <div className="today-quick">
@@ -429,14 +415,22 @@ function SectionToday({ date, setDate }) {
             <div className="event-date">{fmtDateDE(date)}</div>
             {place ? (
               <>
-                <h3 className="event-title">{place.name}{place.parent && <em style={{color:"var(--graphite)", fontStyle:"italic", fontSize: 18, marginLeft: 10, fontWeight: 400}}>in {place.parent}</em>}</h3>
+                <h3 className="event-title">
+                  {place.name}
+                  {place.parent && place.parent !== place.name && (
+                    <em style={{color:"var(--graphite)", fontStyle:"italic", fontSize: 18, marginLeft: 10, fontWeight: 400}}>in {place.parent}</em>
+                  )}
+                </h3>
                 <div className="event-body">
-                  {stay.event}. {place.note || "Der Eintrag ist durch Tagebuch und/oder Korrespondenz belegt."}
+                  Belegt durch Tagebuch und/oder Korrespondenz; PMB-ID <span style={{fontFamily: "var(--mono)", fontSize: 13}}>{place.id}</span>.
+                  {others.length > 0 && (
+                    <> Am selben Tag belegt: {others.map(o => o.name).join(", ")}.</>
+                  )}
                 </div>
                 <div className="event-meta">
-                  <span>Land <b>{place.country}</b></span>
-                  <span>Typ <b>{place.type === "p" ? "Ort" : "Gebäude"}</b></span>
-                  <span>Aufenthalt <b>{fmtDateDE(stay.start)} – {fmtDateDE(stay.end)}</b></span>
+                  <span>Land <b>{place.country || "—"}</b></span>
+                  <span>Typ <b>{describeKind(place.kind, place.type)}</b></span>
+                  <span>Beziehung <b>{place.firstVisit ? place.firstVisit.slice(0,4) : "?"}–{place.lastVisit ? place.lastVisit.slice(0,4) : "?"}</b></span>
                 </div>
               </>
             ) : (
@@ -457,11 +451,11 @@ function SectionToday({ date, setDate }) {
 
 // ---------- Places ----------
 function SectionPlaces({ activeId, setActiveId }) {
-  const sorted = [...window.SCHNITZLER_PLACES].filter(p => p.days > 0).sort((a,b) => b.days - a.days);
-  const top = sorted.slice(0, 18);
-  const max = top[0].days;
+  const sorted = useMemo(() => window.SCHNITZLER_PLACES.filter(p => p.days > 0).slice(0, 200), []);
+  const top = sorted.slice(0, 24);
+  const max = top[0]?.days || 1;
   const active = window.SCHNITZLER_BY_ID[activeId] || top[0];
-  const people = window.SCHNITZLER_PEOPLE[active.id] || [];
+  const people = (active && window.SCHNITZLER_PEOPLE[active.id]) || [];
 
   return (
     <section className="sec" id="orte">
@@ -472,11 +466,12 @@ function SectionPlaces({ activeId, setActiveId }) {
             <h2 className="sec-title">Rangordnung <em>nach Aufenthaltstagen.</em></h2>
             <p className="sec-lede" style={{marginTop: 16}}>
               Wien dominiert erwartbar; auffallend ist die Dichte der spezifizierten Innerwiener
-              Adressen — drei Wohnungen prägen sein Leben, zwei Kaffeehäuser, ein Theater.
+              Adressen — drei Wohnungen prägen sein Leben, dazu Theater, Kaffeehäuser, das AKH
+              und die Ordination des Vaters am Burgring.
             </p>
           </div>
           <div className="sec-meta">
-            Orte gelistet<br/><b style={{color:"var(--ink)", fontSize: 14}}>{top.length} / {sorted.length}</b>
+            Top<br/><b style={{color:"var(--ink)", fontSize: 14}}>{top.length} / {window.SCHNITZLER_TOTAL_PLACES}</b>
           </div>
         </div>
 
@@ -491,7 +486,7 @@ function SectionPlaces({ activeId, setActiveId }) {
                 <span className="idx">{String(i+1).padStart(2,"0")}</span>
                 <span className="name">
                   {p.name}
-                  {p.parent && <em>in {p.parent}</em>}
+                  {p.parent && p.parent !== p.name && <em>in {p.parent}</em>}
                 </span>
                 <span className="bar" style={{width: `${(p.days/max)*180}px`}}></span>
                 <span className="days">{fmtNum(p.days)} T.</span>
@@ -499,90 +494,187 @@ function SectionPlaces({ activeId, setActiveId }) {
             ))}
           </div>
 
-          <aside className="place-panel">
-            <div className="pp-kicker">Ortsdossier</div>
-            <h3>{active.name}</h3>
-            <div className="pp-sub">
-              {active.parent ? `${active.parent} · ` : ""}{active.country} · {active.type === "p" ? "Ort" : "Gebäude / Adresse"}
-            </div>
-            <div className="pp-stats">
-              <div>
-                <div className="num">{fmtNum(active.days)}</div>
-                <div className="lab">Tage</div>
+          {active && (
+            <aside className="place-panel">
+              <div className="pp-kicker">Ortsdossier</div>
+              <h3>{active.name}</h3>
+              <div className="pp-sub">
+                {active.parent && active.parent !== active.name ? `${active.parent} · ` : ""}{active.country} · {describeKind(active.kind, active.type)}
               </div>
-              <div>
-                <div className="num">{active.firstVisit ? active.firstVisit.slice(0,4) : "—"}</div>
-                <div className="lab">erster Besuch</div>
-              </div>
-              <div>
-                <div className="num">{active.lastVisit ? active.lastVisit.slice(0,4) : "—"}</div>
-                <div className="lab">letzter Besuch</div>
-              </div>
-              <div>
-                <div className="num">{active.firstVisit && active.lastVisit ? (parseInt(active.lastVisit.slice(0,4)) - parseInt(active.firstVisit.slice(0,4))) : 0}</div>
-                <div className="lab">Jahre Beziehung</div>
-              </div>
-            </div>
-            {active.note && <p className="pp-note">{active.note}</p>}
-            {people.length > 0 && (
-              <>
-                <div className="pp-section-label">Personen, die dort begegneten</div>
-                <div className="pp-people">
-                  {people.map(n => <span key={n}>{n}</span>)}
+              <div className="pp-stats">
+                <div>
+                  <div className="num">{fmtNum(active.days)}</div>
+                  <div className="lab">Tage</div>
                 </div>
-              </>
-            )}
-            <div className="pp-coords">
-              {active.lat.toFixed(4)}° N · {active.lon.toFixed(4)}° E · ID {active.id}
-            </div>
-          </aside>
+                <div>
+                  <div className="num">{active.firstVisit ? active.firstVisit.slice(0,4) : "—"}</div>
+                  <div className="lab">erster Besuch</div>
+                </div>
+                <div>
+                  <div className="num">{active.lastVisit ? active.lastVisit.slice(0,4) : "—"}</div>
+                  <div className="lab">letzter Besuch</div>
+                </div>
+                <div>
+                  <div className="num">{active.firstVisit && active.lastVisit ? (parseInt(active.lastVisit.slice(0,4)) - parseInt(active.firstVisit.slice(0,4))) : 0}</div>
+                  <div className="lab">Jahre Beziehung</div>
+                </div>
+              </div>
+              {people.length > 0 && (
+                <>
+                  <div className="pp-section-label">Personen, die dort wohnten oder arbeiteten</div>
+                  <div className="pp-people">
+                    {people.map(n => <span key={n}>{n}</span>)}
+                  </div>
+                </>
+              )}
+              <div className="pp-coords">
+                {active.lat.toFixed(4)}° N · {active.lon.toFixed(4)}° E · {" "}
+                <a href={`https://pmb.acdh.oeaw.ac.at/entity/${active.id.replace(/^pmb/,"")}/`} target="_blank" rel="noopener" style={{borderBottom:"1px solid var(--rule-2)"}}>PMB {active.id}</a>
+              </div>
+            </aside>
+          )}
         </div>
       </div>
     </section>
   );
 }
 
-// ---------- Routes ----------
-function SectionRoutes() {
-  const routes = [
-    {
-      id: "italien1894",
-      title: "Italienreise mit Marie Reinhard",
-      meta: "April–Mai 1894 · 28 Tage · 5 Orte",
-      stops: ["pmb10","pmb50","pmb52","pmb51","pmb50","pmb10"]
-    },
-    {
-      id: "skandinavien1914",
-      title: "Skandinavienreise",
-      meta: "Mai 1914 · 17 Tage · 4 Orte",
-      stops: ["pmb10","pmb30","pmb70","pmb71","pmb30","pmb10"]
-    },
-    {
-      id: "sommer1900",
-      title: "Sommerfrische 1900",
-      meta: "Juli–September 1900 · 58 Tage · 3 Orte",
-      stops: ["pmb10","pmb41","pmb60","pmb61","pmb10"]
-    },
-    {
-      id: "berlin1912",
-      title: "Berliner Theatersaison",
-      meta: "Oktober 1912 · 14 Tage · 2 Orte",
-      stops: ["pmb10","pmb30","pmb10"]
-    },
-    {
-      id: "kur1926",
-      title: "Kur in Marienbad",
-      meta: "Juli–August 1926 · 22 Tage · 3 Orte",
-      stops: ["pmb21","pmb55","pmb56","pmb21"]
+// ---------- Routes (auto-derived from timeline) ----------
+function deriveRoutes() {
+  // Group consecutive "out of Vienna" days into trips. A trip = stretch of dates
+  // with at least one place that isn't in/under Wien.
+  const stays = window.SCHNITZLER_STAYS;
+  const byId = window.SCHNITZLER_BY_ID;
+  const isWien = (id) => {
+    const p = byId[id];
+    if (!p) return true; // unknown → treat as background
+    return p.country === "Österreich" && (p.parent === "Wien" || p.name === "Wien" || /^[IVX]+\.,/.test(p.name));
+  };
+
+  // Build per-date sets
+  const byDate = {};
+  for (const s of stays) (byDate[s.d] = byDate[s.d] || new Set()).add(s.p);
+  const dates = Object.keys(byDate).sort();
+
+  const trips = [];
+  let current = null;
+  let prev = null;
+  for (const d of dates) {
+    const ids = [...byDate[d]];
+    const offWien = ids.some(id => !isWien(id));
+    if (offWien) {
+      if (!current || (prev && (new Date(d) - new Date(prev)) > 3 * 86400000)) {
+        if (current && current.dates.length >= 4) trips.push(current);
+        current = { start: d, end: d, dates: [], stops: new Map() };
+      }
+      current.end = d;
+      current.dates.push(d);
+      for (const id of ids) {
+        if (!isWien(id)) {
+          const p = byId[id];
+          if (!p || p.type !== "p") continue;
+          current.stops.set(id, (current.stops.get(id) || 0) + 1);
+        }
+      }
+      prev = d;
+    } else if (current && current.dates.length >= 4) {
+      trips.push(current);
+      current = null;
+      prev = d;
+    } else if (current) {
+      current = null;
     }
-  ];
+  }
+  if (current && current.dates.length >= 4) trips.push(current);
 
-  const [active, setActive] = useState(routes[0].id);
-  const route = routes.find(r => r.id === active);
-  const stops = route.stops.map(id => window.SCHNITZLER_BY_ID[id]);
+  // Score & rank: prefer trips with multiple stops & longer span.
+  const scored = trips.map(t => {
+    const stops = [...t.stops.entries()]
+      .sort((a,b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([id]) => byId[id])
+      .filter(Boolean);
+    const countries = new Set(stops.map(s => s.country).filter(Boolean));
+    const span = Math.round((new Date(t.end) - new Date(t.start)) / 86400000) + 1;
+    return { ...t, stops, countries: [...countries], span, score: stops.length * span };
+  })
+  .filter(t => t.stops.length >= 2)
+  .sort((a, b) => b.score - a.score)
+  .slice(0, 14);
 
-  const W = 900, H = 640;
-  const bbox = [-2, 20, 40, 60];
+  // Title heuristic
+  for (const t of scored) {
+    const region = t.countries.length === 1 ? t.countries[0] : t.countries.slice(0, 3).join(" · ");
+    const monthDE = MONTHS[new Date(t.start).getMonth()];
+    t.id = "trip-" + t.start;
+    t.title = `${t.stops[0].name}${t.stops[1] ? " · " + t.stops[1].name : ""}`;
+    t.meta = `${monthDE} ${t.start.slice(0,4)} · ${t.span} Tage · ${t.stops.length} Stationen · ${region}`;
+  }
+
+  return scored;
+}
+
+function RouteMap({ stops }) {
+  const elRef = useRef(null);
+  const mapRef = useRef(null);
+  const layerRef = useRef(null);
+  const ready = useLeafletReady();
+
+  useEffect(() => {
+    if (!ready || mapRef.current || !elRef.current) return;
+    const map = L.map(elRef.current, { zoomControl: false, scrollWheelZoom: false, attributionControl: true })
+      .setView([48.21, 16.37], 4);
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+      attribution: "© OSM · CARTO", maxZoom: 18, subdomains: "abcd"
+    }).addTo(map);
+    L.control.zoom({ position: "topright" }).addTo(map);
+    mapRef.current = map;
+  }, [ready]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !stops || !stops.length) return;
+    if (layerRef.current) layerRef.current.remove();
+    const layer = L.layerGroup().addTo(map);
+    layerRef.current = layer;
+
+    // Add Wien as origin/return.
+    const wien = window.SCHNITZLER_BY_ID["pmb50"];
+    const sequence = [wien, ...stops, wien].filter(Boolean);
+    const latlngs = sequence.map(s => [s.lat, s.lon]);
+
+    L.polyline(latlngs, {
+      color: getCss("--accent") || "#bd2c2a",
+      weight: 2, opacity: 0.85, dashArray: "5 4"
+    }).addTo(layer);
+
+    sequence.forEach((s, i) => {
+      const isOrigin = i === 0 || i === sequence.length - 1;
+      const r = isOrigin ? 7 : 5;
+      const dot = L.divIcon({
+        className: "",
+        html: `<div class="schnitzler-dot ${isOrigin ? "is-active" : "is-place"}" style="width:${r*2}px;height:${r*2}px"></div>`,
+        iconSize: [r*2, r*2], iconAnchor: [r, r]
+      });
+      L.marker([s.lat, s.lon], { icon: dot }).addTo(layer)
+        .bindTooltip(`${isOrigin ? "00" : String(i).padStart(2,"0")} · ${s.name}`,
+          { permanent: false, direction: "right", className: "route-stop-label", offset: [10, 0] });
+    });
+
+    try { map.fitBounds(latlngs, { padding: [40, 40], maxZoom: 7 }); } catch (e) {}
+  }, [ready, stops]);
+
+  return <div className="leaflet-stage" style={{position:"absolute", inset:0}} ref={elRef}></div>;
+}
+
+function getCss(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+function SectionRoutes() {
+  const routes = useMemo(() => deriveRoutes(), []);
+  const [active, setActive] = useState(routes[0]?.id);
+  const route = routes.find(r => r.id === active) || routes[0];
 
   return (
     <section className="sec" id="reisen">
@@ -592,8 +684,9 @@ function SectionRoutes() {
           <div>
             <h2 className="sec-title">Einzelne Reisen, <em>nachgezeichnet.</em></h2>
             <p className="sec-lede" style={{marginTop: 16}}>
-              Aus den Aufenthalten lassen sich zusammenhängende Reisen rekonstruieren. Die ausgewählten
-              Beispiele zeigen typische Muster: Sommerfrische, Lesereisen, Theaterpremieren, Kuraufenthalte.
+              Aus den taggenauen Aufenthalten lassen sich zusammenhängende Reisen rekonstruieren. Die
+              Liste zeigt automatisch identifizierte längere Aufenthalte außerhalb Wiens — typische
+              Muster: Sommerfrische, Italien-Reisen, Kuren, Theaterstationen.
             </p>
           </div>
           <div className="sec-meta">Auswahl<br/><b style={{color:"var(--ink)", fontSize: 14}}>{routes.length} Reisen</b></div>
@@ -607,7 +700,7 @@ function SectionRoutes() {
                 className={`route-item ${active === r.id ? "active" : ""}`}
                 onClick={() => setActive(r.id)}
               >
-                <div className="rkick">Route {r.id.slice(-4)}</div>
+                <div className="rkick">{r.start.slice(0,4)}</div>
                 <div className="rname">{r.title}</div>
                 <div className="rmeta">{r.meta}</div>
               </div>
@@ -615,46 +708,7 @@ function SectionRoutes() {
           </div>
 
           <div className="route-map">
-            <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet">
-              <defs>
-                <pattern id="rpaperDots" width="6" height="6" patternUnits="userSpaceOnUse">
-                  <circle cx="1" cy="1" r="0.5" fill="#C2BAA5" opacity="0.5"/>
-                </pattern>
-              </defs>
-              <rect width={W} height={H} fill="url(#rpaperDots)"/>
-              {/* path */}
-              {stops.map((s, i) => {
-                if (i === 0) return null;
-                const a = stops[i-1];
-                const [x1, y1] = project(a.lon, a.lat, W, H, bbox);
-                const [x2, y2] = project(s.lon, s.lat, W, H, bbox);
-                // curved path
-                const mx = (x1+x2)/2, my = (y1+y2)/2 - Math.abs(x2-x1)*0.15;
-                return (
-                  <path
-                    key={i}
-                    d={`M ${x1} ${y1} Q ${mx} ${my} ${x2} ${y2}`}
-                    stroke="var(--accent)"
-                    strokeWidth="1.3"
-                    fill="none"
-                    strokeDasharray="4 3"
-                  />
-                );
-              })}
-              {stops.map((s, i) => {
-                const [x, y] = project(s.lon, s.lat, W, H, bbox);
-                const isStart = i === 0;
-                const isEnd = i === stops.length - 1;
-                return (
-                  <g key={i + s.id}>
-                    <circle cx={x} cy={y} r={isStart || isEnd ? 7 : 5} fill={isStart || isEnd ? "var(--accent)" : "var(--ink)"} stroke="var(--paper)" strokeWidth="2"/>
-                    <text x={x + 10} y={y + 4} fontFamily="var(--mono)" fontSize="11" fill="var(--ink)" style={{textTransform: "uppercase", letterSpacing: "0.06em"}}>
-                      {String(i+1).padStart(2,"0")} · {s.name}
-                    </text>
-                  </g>
-                );
-              })}
-            </svg>
+            {route && <RouteMap stops={route.stops} />}
           </div>
         </div>
       </div>
@@ -664,26 +718,18 @@ function SectionRoutes() {
 
 // ---------- Stats ----------
 function SectionStats() {
-  const countries = Object.entries(window.SCHNITZLER_STATS.countries).sort((a,b) => b[1]-a[1]);
-  const cMax = countries[0][1];
+  const countries = Object.entries(window.SCHNITZLER_STATS.countries)
+    .filter(([c]) => c && c !== "—")
+    .sort((a,b) => b[1]-a[1])
+    .slice(0, 10);
+  const cMax = countries[0]?.[1] || 1;
   const types = Object.entries(window.SCHNITZLER_STATS.types).sort((a,b) => b[1]-a[1]);
-  const tMax = types[0][1];
+  const tMax = types[0]?.[1] || 1;
 
-  // Decades: stays per decade
   const decs = [];
   for (let d = 1860; d <= 1930; d += 10) decs.push(d);
-  const decCounts = decs.map(d => {
-    // synthesize from timeline density
-    let c = 0;
-    window.SCHNITZLER_STAYS.forEach(s => {
-      const y = parseInt(s.start.slice(0,4));
-      if (y >= d && y < d+10) c += 1;
-    });
-    // pad to realistic counts (hundreds per decade in real dataset)
-    const base = [340, 1820, 4220, 7860, 9950, 11200, 9640, 2120][Math.floor((d-1860)/10)] || 0;
-    return base + c * 20;
-  });
-  const dMax = Math.max(...decCounts);
+  const decCounts = decs.map(d => window.SCHNITZLER_STATS.decades[d] || 0);
+  const dMax = Math.max(1, ...decCounts);
 
   return (
     <section className="sec" id="zahlen">
@@ -694,7 +740,8 @@ function SectionStats() {
             <h2 className="sec-title">Ein Leben <em>als Datensatz.</em></h2>
             <p className="sec-lede" style={{marginTop: 16}}>
               Drei quantitative Perspektiven auf die Bewegungen. Die Daten bleiben lückenhaft für
-              Kindheit und letzte Lebensjahre — das Plateau um 1900 entspricht der produktivsten Phase.
+              Kindheit und letzte Lebensjahre — das Plateau zwischen 1890 und 1925 entspricht der
+              produktivsten Phase.
             </p>
           </div>
           <div className="sec-meta">Erhebung<br/><b style={{color:"var(--ink)", fontSize: 14}}>2024–2026</b></div>
@@ -703,12 +750,12 @@ function SectionStats() {
         <div className="dash-grid">
           <div className="panel">
             <h4>Dek. 01</h4>
-            <div className="panel-sub">Aufenthalte nach Dekade</div>
+            <div className="panel-sub">Belege nach Dekade</div>
             <div style={{paddingTop: 18}}>
               <div className="decade-chart">
                 {decCounts.map((c, i) => (
                   <div key={decs[i]} className="decade-bar" style={{height: `${(c/dMax)*100}%`}}>
-                    {i === decCounts.indexOf(dMax) && <span className="vlab">{fmtNum(c)}</span>}
+                    {c === dMax && <span className="vlab">{fmtNum(c)}</span>}
                   </div>
                 ))}
               </div>
@@ -720,12 +767,12 @@ function SectionStats() {
 
           <div className="panel">
             <h4>Dek. 02</h4>
-            <div className="panel-sub">Länder nach Aufenthalten</div>
+            <div className="panel-sub">Länder nach Belegen</div>
             {countries.map(([c, v]) => (
               <div className="bar-row" key={c}>
                 <div className="l">{c}</div>
                 <div className="b" style={{width: `${(v/cMax)*100}%`}}></div>
-                <div className="v">{v}</div>
+                <div className="v">{fmtNum(v)}</div>
               </div>
             ))}
           </div>
@@ -776,8 +823,9 @@ function Footer() {
           <div>
             <div><b>Daten</b></div>
             <p className="ft-body">
-              Sämtliche Daten CC BY 4.0. Download als GeoJSON, CSV oder JSON direkt aus dem Repositorium.
-              Tägliche GeoJSON-Dateien (z. B. 1903-09-01.geojson) stehen zur Verfügung.
+              Sämtliche Daten <a href="https://github.com/wiener-moderne-verein/wienerschnitzler-data" target="_blank" rel="noopener" style={{borderBottom:"1px solid var(--rule-2)"}}>CC BY 4.0</a>.
+              Download als GeoJSON, CSV oder JSON direkt aus dem Repositorium. Tägliche
+              GeoJSON-Dateien (z. B. <span style={{fontFamily:"var(--mono)"}}>1903-09-01.geojson</span>) stehen zur Verfügung.
             </p>
           </div>
           <div>
@@ -872,7 +920,7 @@ function applyTweaks(state) {
 
 // ---------- App ----------
 function App() {
-  const [activePlaceId, setActivePlaceId] = useState("pmb10");
+  const [activePlaceId, setActivePlaceId] = useState("pmb50");
   const [activeSection, setActiveSection] = useState("karte");
   const [date, setDate] = useState("1903-09-01");
   const [tweaksVisible, setTweaksVisible] = useState(false);
@@ -897,14 +945,12 @@ function App() {
     window.parent.postMessage({type: "__edit_mode_set_keys", edits: next}, "*");
   }, []);
 
-  // scroll to section
   const jumpTo = (id) => {
     setActiveSection(id);
     const el = document.getElementById(id);
     if (el) window.scrollTo({top: el.offsetTop - 70, behavior: "smooth"});
   };
 
-  // observe sections
   useEffect(() => {
     const ids = ["karte","zeitleiste","heute","orte","reisen","zahlen"];
     const obs = new IntersectionObserver((entries) => {
