@@ -1,0 +1,67 @@
+name: Sync upstream data
+
+on:
+  schedule:
+    # Täglich um 04:00 UTC — nach Upstream-Builds.
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+  push:
+    paths:
+      - "scripts/build-data.mjs"
+      - ".github/workflows/sync-data.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    env:
+      UPSTREAM_REPO: wiener-moderne-verein/wienerschnitzler-data
+      UPSTREAM_BRANCH: main
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Prepare directories
+        run: |
+          mkdir -p data/source/indices
+          mkdir -p data/source/editions/indices
+
+      - name: Fetch upstream files
+        run: |
+          BASE="https://raw.githubusercontent.com/${UPSTREAM_REPO}/${UPSTREAM_BRANCH}/data"
+          # Top-level aggregates
+          curl -fsSL "$BASE/wienerschnitzler_timeline.json"    -o data/source/wienerschnitzler_timeline.json
+          curl -fsSL "$BASE/uebersicht.json"                   -o data/source/uebersicht.json      || echo "uebersicht.json missing, skipping"
+          curl -fsSL "$BASE/wienerschnitzler_distinctPlaces.xml" -o data/source/wienerschnitzler_distinctPlaces.xml || true
+          # Indices
+          curl -fsSL "$BASE/editions/indices/listplace.xml"    -o data/source/indices/listplace.xml || \
+            curl -fsSL "$BASE/indices/listplace.xml"           -o data/source/indices/listplace.xml
+          curl -fsSL "$BASE/editions/indices/partOf.xml"       -o data/source/indices/partOf.xml    || \
+            curl -fsSL "$BASE/indices/partOf.xml"              -o data/source/indices/partOf.xml   || true
+          curl -fsSL "$BASE/editions/indices/living-working-in.xml" -o data/source/indices/living-working-in.xml || true
+
+      - name: Transform to data/schnitzler.js
+        run: node scripts/build-data.mjs
+
+      - name: Rebuild inline index.html
+        run: node scripts/build-index.mjs
+
+      - name: Commit if changed
+        run: |
+          git config user.name  "schnitzler-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add data/ index.html
+          if git diff --cached --quiet; then
+            echo "No changes."
+          else
+            STAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
+            git commit -m "data: sync from upstream ($STAMP)"
+            git push
+          fi
