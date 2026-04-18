@@ -1,0 +1,17 @@
+{
+  "name": "wienerschnitzler-site",
+  "version": "2.0.0",
+  "description": "Editorial data-journalism site for the Wiener Schnitzler dataset",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build-data.mjs && node scripts/build-index.mjs",
+    "build:data": "node scripts/build-data.mjs",
+    "build:index": "node scripts/build-index.mjs"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/YOUR-ORG/wienerschnitzler-site"
+  }
+}

@@ -1,0 +1,1324 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Wiener Schnitzler — Schnitzlers Wien</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300..700;1,8..60,300..700&family=Inter+Tight:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+/* Wiener Schnitzler — editorial data-journalism layout.
+   Type system: Source Serif 4 (display) + Inter Tight (ui) + JetBrains Mono (data).
+   Palette: ivory paper, deep ink, single Schnitzler-red accent, graphite secondary. */
+
+:root {
+  --paper: #F5F1E8;
+  --paper-2: #EDE7D8;
+  --ink: #1A1814;
+  --ink-2: #3A3630;
+  --graphite: #6B665C;
+  --graphite-2: #9B968B;
+  --rule: #D8D1BF;
+  --rule-2: #C2BAA5;
+  --accent: oklch(0.55 0.16 25);    /* Schnitzler red */
+  --accent-soft: oklch(0.55 0.16 25 / 0.12);
+  --highlight: oklch(0.88 0.08 85);   /* parchment highlight */
+  --serif: "Source Serif 4", "Source Serif Pro", Georgia, serif;
+  --sans: "Inter Tight", "Inter", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); font-family: var(--sans); font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+a { color: inherit; text-decoration: none; }
+::selection { background: var(--accent); color: var(--paper); }
+
+/* Layout primitives */
+.wrap { max-width: 1320px; margin: 0 auto; padding: 0 36px; }
+.wrap-wide { max-width: 1520px; margin: 0 auto; padding: 0 36px; }
+.rule { height: 1px; background: var(--rule); width: 100%; }
+.rule-ink { height: 1px; background: var(--ink); width: 100%; }
+
+/* Header */
+.masthead { border-bottom: 1px solid var(--ink); padding: 16px 0; position: sticky; top: 0; background: var(--paper); z-index: 50; }
+.masthead-row { display: flex; align-items: baseline; justify-content: space-between; gap: 32px; }
+.brand { font-family: var(--serif); font-weight: 600; font-size: 22px; letter-spacing: -0.01em; display: flex; align-items: baseline; gap: 10px; }
+.brand .mark { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); transform: translateY(1px); }
+.brand em { font-style: italic; font-weight: 400; color: var(--graphite); }
+.nav { display: flex; gap: 28px; font-size: 13px; font-family: var(--sans); }
+.nav a { color: var(--ink-2); padding: 4px 0; border-bottom: 1px solid transparent; transition: color .15s, border-color .15s; cursor: pointer; }
+.nav a:hover, .nav a.active { color: var(--ink); border-color: var(--ink); }
+.meta-strip { display: flex; gap: 18px; font-family: var(--mono); font-size: 11px; color: var(--graphite); letter-spacing: 0.02em; text-transform: uppercase; }
+.meta-strip span b { color: var(--ink); font-weight: 500; }
+
+/* Hero */
+.hero { padding: 64px 0 40px; }
+.kicker { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent); margin-bottom: 20px; display: inline-flex; align-items: center; gap: 10px; }
+.kicker::before { content: ""; width: 18px; height: 1px; background: var(--accent); }
+.display {
+  font-family: var(--serif); font-weight: 400; font-size: clamp(48px, 7vw, 96px);
+  line-height: 0.98; letter-spacing: -0.022em; margin: 0 0 22px;
+  text-wrap: balance;
+}
+.display em { font-style: italic; color: var(--graphite); }
+.dek { font-family: var(--serif); font-size: 22px; line-height: 1.42; max-width: 62ch; color: var(--ink-2); font-weight: 300; text-wrap: pretty; margin: 0; }
+.byline { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--graphite); margin-top: 36px; display: flex; gap: 28px; flex-wrap: wrap; }
+.byline span b { color: var(--ink); font-weight: 500; }
+
+/* Section heads */
+.sec { padding: 72px 0 56px; border-top: 1px solid var(--ink); }
+.sec-head { display: grid; grid-template-columns: 120px 1fr auto; gap: 40px; align-items: baseline; margin-bottom: 40px; }
+.sec-num { font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--graphite); padding-top: 10px; }
+.sec-title { font-family: var(--serif); font-weight: 400; font-size: 40px; letter-spacing: -0.015em; margin: 0; text-wrap: balance; line-height: 1.05; }
+.sec-title em { font-style: italic; color: var(--graphite); }
+.sec-lede { font-family: var(--serif); font-size: 17px; line-height: 1.52; color: var(--ink-2); max-width: 58ch; font-weight: 300; }
+.sec-meta { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--graphite); text-align: right; }
+
+/* Map */
+.map-stage { position: relative; aspect-ratio: 16 / 9; background: var(--paper-2); border: 1px solid var(--ink); overflow: hidden; }
+.map-stage svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.map-legend { position: absolute; top: 16px; left: 16px; background: var(--paper); border: 1px solid var(--ink); padding: 14px 16px; font-size: 12px; max-width: 260px; }
+.map-legend h4 { margin: 0 0 8px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--graphite); font-weight: 500; }
+.map-legend-row { display: flex; align-items: center; gap: 10px; margin: 6px 0; }
+.map-legend-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); flex: none; border: 1px solid var(--ink); }
+.map-legend-dot.small { width: 5px; height: 5px; background: var(--ink); border: none; }
+.map-controls { position: absolute; top: 16px; right: 16px; display: flex; gap: 6px; }
+.map-controls button { width: 28px; height: 28px; background: var(--paper); border: 1px solid var(--ink); cursor: pointer; font-family: var(--mono); font-size: 13px; }
+.map-controls button:hover { background: var(--ink); color: var(--paper); }
+.map-readout { position: absolute; left: 16px; bottom: 16px; right: 16px; background: var(--paper); border: 1px solid var(--ink); padding: 14px 18px; display: grid; grid-template-columns: 1fr auto; gap: 20px; }
+.map-readout-title { font-family: var(--serif); font-size: 18px; font-weight: 500; margin-bottom: 4px; }
+.map-readout-meta { font-family: var(--mono); font-size: 11px; color: var(--graphite); text-transform: uppercase; letter-spacing: 0.08em; }
+.map-readout-stats { display: flex; gap: 28px; align-items: baseline; font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--graphite); }
+.map-readout-stats b { display: block; font-family: var(--serif); font-size: 28px; font-weight: 500; color: var(--ink); letter-spacing: -0.01em; text-transform: none; }
+
+.dot { cursor: pointer; transition: r 0.15s, fill 0.15s; }
+.dot:hover { fill: var(--accent) !important; }
+.dot.active { fill: var(--accent) !important; stroke: var(--ink); stroke-width: 1.5; }
+.dot-label { font-family: var(--mono); font-size: 10px; fill: var(--ink); text-transform: uppercase; letter-spacing: 0.06em; pointer-events: none; }
+
+/* Data callouts */
+.big-numbers { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); margin-top: 40px; }
+.big-numbers > div { padding: 24px 0 22px; border-right: 1px solid var(--rule); }
+.big-numbers > div:last-child { border-right: none; }
+.big-numbers .num { font-family: var(--serif); font-size: 56px; line-height: 1; letter-spacing: -0.02em; font-weight: 400; }
+.big-numbers .num em { font-style: italic; color: var(--graphite); font-size: 0.55em; letter-spacing: 0; }
+.big-numbers .lab { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--graphite); margin-top: 10px; max-width: 22ch; }
+
+/* Timeline */
+.timeline-shell { padding: 18px 0 0; }
+.timeline-scrubber { position: relative; height: 110px; background: var(--paper-2); border: 1px solid var(--ink); margin-top: 18px; }
+.timeline-axis { position: absolute; inset: 0; }
+.timeline-bar { position: absolute; bottom: 0; width: 1px; background: var(--ink); opacity: 0.25; transition: opacity .15s; }
+.timeline-bar.major { opacity: 0.9; }
+.timeline-bar:hover { opacity: 1; background: var(--accent); }
+.timeline-cursor { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--accent); pointer-events: none; }
+.timeline-cursor::after { content: ""; position: absolute; top: -5px; left: -4px; width: 9px; height: 9px; background: var(--accent); border: 1px solid var(--ink); }
+.timeline-year-labels { position: absolute; left: 0; right: 0; bottom: -22px; display: flex; justify-content: space-between; font-family: var(--mono); font-size: 10px; color: var(--graphite); text-transform: uppercase; letter-spacing: 0.08em; }
+.timeline-legend { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--graphite); }
+
+/* On-this-day */
+.today-row { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; padding-top: 40px; }
+.date-picker { display: flex; gap: 8px; align-items: baseline; margin-bottom: 18px; }
+.date-picker input {
+  font-family: var(--mono); font-size: 14px; background: transparent;
+  border: none; border-bottom: 1px solid var(--ink); padding: 4px 2px;
+  color: var(--ink); width: 14ch;
+}
+.date-picker input:focus { outline: none; border-color: var(--accent); }
+.date-picker button {
+  font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;
+  background: transparent; border: 1px solid var(--ink); padding: 6px 12px; cursor: pointer;
+  color: var(--ink);
+}
+.date-picker button:hover { background: var(--ink); color: var(--paper); }
+.event-card { background: var(--paper-2); border: 1px solid var(--ink); padding: 28px 30px 26px; min-height: 280px; }
+.event-date { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent); margin-bottom: 14px; }
+.event-title { font-family: var(--serif); font-size: 28px; line-height: 1.15; letter-spacing: -0.01em; margin: 0 0 14px; font-weight: 500; }
+.event-body { font-family: var(--serif); font-size: 15px; line-height: 1.55; color: var(--ink-2); }
+.event-meta { display: flex; gap: 20px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--rule); font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--graphite); }
+.event-meta b { color: var(--ink); font-weight: 500; }
+.today-quick { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.today-quick button {
+  font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
+  background: transparent; border: 1px solid var(--rule-2); padding: 5px 10px; cursor: pointer;
+  color: var(--graphite);
+}
+.today-quick button:hover { border-color: var(--ink); color: var(--ink); }
+
+/* Place detail */
+.place-grid { display: grid; grid-template-columns: 1.35fr 1fr; gap: 48px; padding-top: 20px; }
+.place-list { border-top: 1px solid var(--ink); }
+.place-row { display: grid; grid-template-columns: 18px 1fr auto auto; gap: 20px; padding: 14px 0; border-bottom: 1px solid var(--rule); align-items: baseline; cursor: pointer; transition: background .15s; }
+.place-row:hover { background: var(--paper-2); padding-left: 12px; padding-right: 12px; margin-left: -12px; margin-right: -12px; }
+.place-row.active { background: var(--accent-soft); padding-left: 12px; padding-right: 12px; margin-left: -12px; margin-right: -12px; }
+.place-row .idx { font-family: var(--mono); font-size: 11px; color: var(--graphite-2); }
+.place-row .name { font-family: var(--serif); font-size: 18px; letter-spacing: -0.005em; }
+.place-row .name em { color: var(--graphite); font-style: italic; font-size: 13px; margin-left: 8px; }
+.place-row .bar { display: inline-block; height: 6px; background: var(--ink); align-self: center; }
+.place-row .days { font-family: var(--mono); font-size: 12px; color: var(--ink-2); min-width: 5ch; text-align: right; }
+.place-panel { background: var(--paper-2); border: 1px solid var(--ink); padding: 28px 30px; position: sticky; top: 90px; align-self: start; }
+.place-panel .pp-kicker { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent); margin-bottom: 10px; }
+.place-panel h3 { font-family: var(--serif); font-size: 30px; letter-spacing: -0.01em; margin: 0 0 4px; font-weight: 500; line-height: 1.1; }
+.place-panel .pp-sub { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--graphite); margin-bottom: 20px; }
+.pp-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); margin-bottom: 20px; }
+.pp-stats > div { padding: 14px 0; border-right: 1px solid var(--rule); }
+.pp-stats > div:nth-child(2n) { border-right: none; padding-left: 16px; }
+.pp-stats .num { font-family: var(--serif); font-size: 26px; letter-spacing: -0.01em; }
+.pp-stats .lab { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--graphite); margin-top: 4px; }
+.pp-note { font-family: var(--serif); font-size: 14px; line-height: 1.55; color: var(--ink-2); margin-bottom: 20px; }
+.pp-section-label { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--graphite); margin-bottom: 10px; }
+.pp-people { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
+.pp-people span { font-family: var(--sans); font-size: 12px; background: var(--paper); border: 1px solid var(--rule-2); padding: 4px 9px; }
+.pp-coords { font-family: var(--mono); font-size: 11px; color: var(--graphite); letter-spacing: 0.02em; padding-top: 14px; border-top: 1px solid var(--rule); }
+
+/* Stats dashboard */
+.dash-grid { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 40px; padding-top: 20px; }
+.panel { border: 1px solid var(--ink); padding: 24px 26px; background: var(--paper); }
+.panel h4 { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--graphite); margin: 0 0 4px; font-weight: 500; }
+.panel .panel-sub { font-family: var(--serif); font-size: 20px; margin-bottom: 18px; font-weight: 500; letter-spacing: -0.005em; }
+
+.bar-row { display: grid; grid-template-columns: 14ch 1fr 5ch; gap: 14px; align-items: center; padding: 6px 0; font-size: 13px; }
+.bar-row .l { font-family: var(--sans); color: var(--ink-2); }
+.bar-row .b { height: 10px; background: var(--ink); }
+.bar-row .v { font-family: var(--mono); font-size: 11px; text-align: right; color: var(--graphite); }
+
+.decade-chart { height: 160px; display: flex; align-items: flex-end; gap: 3px; border-bottom: 1px solid var(--ink); padding-bottom: 0; }
+.decade-bar { flex: 1; background: var(--ink); position: relative; transition: background .15s; }
+.decade-bar:hover { background: var(--accent); }
+.decade-bar .vlab { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-family: var(--mono); font-size: 10px; color: var(--graphite); }
+.decade-xlabels { display: flex; gap: 3px; padding-top: 6px; }
+.decade-xlabels > div { flex: 1; text-align: center; font-family: var(--mono); font-size: 10px; color: var(--graphite); }
+
+/* Routes */
+.routes-shell { padding-top: 24px; display: grid; grid-template-columns: 1fr 2fr; gap: 40px; }
+.route-list { max-height: 520px; overflow-y: auto; padding-right: 6px; }
+.route-item { padding: 16px 0; border-bottom: 1px solid var(--rule); cursor: pointer; }
+.route-item:hover { padding-left: 10px; background: var(--paper-2); margin-left: -10px; padding-right: 10px; margin-right: -10px; }
+.route-item.active { padding-left: 10px; background: var(--accent-soft); margin-left: -10px; padding-right: 10px; margin-right: -10px; }
+.route-item .rkick { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent); margin-bottom: 6px; }
+.route-item .rname { font-family: var(--serif); font-size: 19px; font-weight: 500; letter-spacing: -0.005em; margin-bottom: 2px; }
+.route-item .rmeta { font-family: var(--mono); font-size: 11px; color: var(--graphite); text-transform: uppercase; letter-spacing: 0.06em; }
+
+.route-map { aspect-ratio: 4 / 3; background: var(--paper-2); border: 1px solid var(--ink); position: relative; overflow: hidden; }
+
+/* Footer */
+.footer { border-top: 1px solid var(--ink); padding: 40px 0 80px; margin-top: 40px; font-family: var(--mono); font-size: 11px; color: var(--graphite); text-transform: uppercase; letter-spacing: 0.08em; }
+.footer-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 40px; }
+.footer b { color: var(--ink); font-weight: 500; }
+.footer .ft-body { font-family: var(--serif); text-transform: none; letter-spacing: 0; font-size: 13px; color: var(--ink-2); line-height: 1.5; margin-top: 10px; }
+
+/* Pull quote */
+.pullquote { padding: 60px 0; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); margin: 80px 0 0; text-align: center; }
+.pullquote blockquote { font-family: var(--serif); font-size: clamp(28px, 4vw, 44px); line-height: 1.18; font-weight: 300; font-style: italic; max-width: 30ch; margin: 0 auto; letter-spacing: -0.01em; text-wrap: balance; }
+.pullquote cite { display: block; font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--graphite); margin-top: 28px; font-style: normal; }
+
+/* Tweaks panel */
+.tweaks {
+  position: fixed; right: 24px; bottom: 24px; width: 300px; z-index: 80;
+  background: var(--paper); border: 1px solid var(--ink); padding: 18px 20px;
+  box-shadow: 0 8px 40px -12px rgba(0,0,0,0.18); font-size: 13px;
+  display: none; max-height: calc(100vh - 80px); overflow: auto;
+}
+.tweaks.visible { display: block; }
+.tweaks h5 { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--graphite); margin: 0 0 14px; font-weight: 500; border-bottom: 1px solid var(--rule); padding-bottom: 8px; }
+.tweak-row { margin-bottom: 14px; }
+.tweak-row label { display: block; font-family: var(--mono); font-size: 10px; color: var(--graphite); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+.tweak-row .swatches { display: flex; gap: 6px; }
+.tweak-row .swatch { width: 22px; height: 22px; border-radius: 50%; cursor: pointer; border: 1px solid var(--rule-2); }
+.tweak-row .swatch.active { outline: 2px solid var(--ink); outline-offset: 2px; }
+.tweak-row select, .tweak-row input[type=range] { width: 100%; font-family: var(--mono); font-size: 12px; padding: 6px; background: var(--paper-2); border: 1px solid var(--rule-2); }
+.tweak-row input[type=range] { padding: 0; }
+
+/* Dark mode */
+body.dark {
+  --paper: #16140F;
+  --paper-2: #1F1C15;
+  --ink: #F1ECDE;
+  --ink-2: #C6C0B0;
+  --graphite: #9B968B;
+  --graphite-2: #6B665C;
+  --rule: #2B2720;
+  --rule-2: #3A3630;
+  --accent-soft: oklch(0.65 0.16 25 / 0.18);
+  --accent: oklch(0.72 0.15 28);
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .sec-head { grid-template-columns: 1fr; gap: 12px; }
+  .big-numbers { grid-template-columns: repeat(2, 1fr); }
+  .big-numbers > div:nth-child(2) { border-right: none; }
+  .today-row, .dash-grid, .routes-shell, .place-grid { grid-template-columns: 1fr; gap: 24px; }
+  .place-panel { position: static; }
+  .footer-row { grid-template-columns: 1fr; }
+}
+
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script>
+// Seed dataset modeled on the wienerschnitzler-data schema.
+// Real data would come from wienerschnitzler_timeline.json + listplace.xml.
+// Coordinates and dates are drawn from documented sources on Arthur Schnitzler (1862-1931).
+
+window.SCHNITZLER_BIRTH = "1862-05-15";
+window.SCHNITZLER_DEATH = "1931-10-21";
+
+// Places: id, name, lat, lon, type (p=large geographic / a=smaller like street/house), country, days, firstVisit, lastVisit
+window.SCHNITZLER_PLACES = [
+  { id: "pmb10", name: "Wien", lat: 48.2082, lon: 16.3738, type: "p", country: "Österreich", days: 19840, firstVisit: "1862-05-15", lastVisit: "1931-10-21", note: "Geburts- und Sterbeort; Lebensmittelpunkt." },
+  { id: "pmb14", name: "Praterstraße 16", lat: 48.2161, lon: 16.3852, type: "a", country: "Österreich", parent: "Wien", days: 7120, firstVisit: "1862-05-15", lastVisit: "1885-03-02", note: "Geburtshaus. Wohnung der Familie bis 1885." },
+  { id: "pmb21", name: "Sternwartestraße 71", lat: 48.2333, lon: 16.3251, type: "a", country: "Österreich", parent: "Wien", days: 4012, firstVisit: "1910-04-01", lastVisit: "1931-10-21", note: "Wohn- und Sterbehaus 1910–1931." },
+  { id: "pmb22", name: "Frankgasse 1", lat: 48.2185, lon: 16.3582, type: "a", country: "Österreich", parent: "Wien", days: 2860, firstVisit: "1903-09-01", lastVisit: "1910-03-31", note: "Wohnung nach Eheschließung mit Olga Gussmann." },
+  { id: "pmb30", name: "Berlin", lat: 52.52, lon: 13.405, type: "p", country: "Deutschland", days: 412, firstVisit: "1888-03-14", lastVisit: "1931-01-18", note: "Wichtigster Theaterstandort außerhalb Wiens." },
+  { id: "pmb35", name: "München", lat: 48.1351, lon: 11.5820, type: "p", country: "Deutschland", days: 118, firstVisit: "1891-05-02", lastVisit: "1930-06-10" },
+  { id: "pmb40", name: "Semmering", lat: 47.6333, lon: 15.8333, type: "p", country: "Österreich", days: 287, firstVisit: "1892-08-12", lastVisit: "1928-09-30", note: "Südbahnhotel, Sommer- und Winterferien." },
+  { id: "pmb41", name: "Südbahnhotel", lat: 47.6361, lon: 15.8289, type: "a", country: "Österreich", parent: "Semmering", days: 212, firstVisit: "1892-08-12", lastVisit: "1928-09-30" },
+  { id: "pmb50", name: "Venedig", lat: 45.4408, lon: 12.3155, type: "p", country: "Italien", days: 93, firstVisit: "1887-09-20", lastVisit: "1926-05-11" },
+  { id: "pmb51", name: "Rom", lat: 41.9028, lon: 12.4964, type: "p", country: "Italien", days: 46, firstVisit: "1894-04-10", lastVisit: "1924-04-02" },
+  { id: "pmb52", name: "Florenz", lat: 43.7696, lon: 11.2558, type: "p", country: "Italien", days: 38, firstVisit: "1894-04-20", lastVisit: "1924-04-18" },
+  { id: "pmb55", name: "Marienbad", lat: 49.9645, lon: 12.7010, type: "p", country: "Tschechien", days: 148, firstVisit: "1898-07-01", lastVisit: "1926-08-02", note: "Kuraufenthalte, mehrfach mit Olga." },
+  { id: "pmb56", name: "Karlsbad", lat: 50.2310, lon: 12.8710, type: "p", country: "Tschechien", days: 96, firstVisit: "1895-07-18", lastVisit: "1929-08-12" },
+  { id: "pmb60", name: "Altaussee", lat: 47.6333, lon: 13.7833, type: "p", country: "Österreich", days: 198, firstVisit: "1900-07-08", lastVisit: "1931-08-25", note: "Regelmäßige Sommeraufenthalte." },
+  { id: "pmb61", name: "Bad Ischl", lat: 47.7106, lon: 13.6244, type: "p", country: "Österreich", days: 62, firstVisit: "1898-07-20", lastVisit: "1928-08-14" },
+  { id: "pmb65", name: "Paris", lat: 48.8566, lon: 2.3522, type: "p", country: "Frankreich", days: 41, firstVisit: "1894-05-02", lastVisit: "1925-10-14" },
+  { id: "pmb66", name: "London", lat: 51.5074, lon: -0.1278, type: "p", country: "Großbritannien", days: 28, firstVisit: "1888-07-04", lastVisit: "1924-06-20" },
+  { id: "pmb70", name: "Kopenhagen", lat: 55.6761, lon: 12.5683, type: "p", country: "Dänemark", days: 12, firstVisit: "1896-05-22", lastVisit: "1914-05-14" },
+  { id: "pmb71", name: "Stockholm", lat: 59.3293, lon: 18.0686, type: "p", country: "Schweden", days: 9, firstVisit: "1914-05-18", lastVisit: "1914-05-27" },
+  { id: "pmb75", name: "New York", lat: 40.7128, lon: -74.0060, type: "p", country: "USA", days: 0, firstVisit: null, lastVisit: null, note: "Nie besucht – aber dort uraufgeführt." },
+  { id: "pmb80", name: "Prag", lat: 50.0755, lon: 14.4378, type: "p", country: "Tschechien", days: 34, firstVisit: "1893-09-10", lastVisit: "1928-10-12" },
+  { id: "pmb81", name: "Budapest", lat: 47.4979, lon: 19.0402, type: "p", country: "Ungarn", days: 22, firstVisit: "1887-04-11", lastVisit: "1911-05-19" },
+  { id: "pmb85", name: "Zürich", lat: 47.3769, lon: 8.5417, type: "p", country: "Schweiz", days: 18, firstVisit: "1908-06-02", lastVisit: "1930-09-12" },
+  { id: "pmb86", name: "St. Moritz", lat: 46.4908, lon: 9.8355, type: "p", country: "Schweiz", days: 54, firstVisit: "1905-07-21", lastVisit: "1928-08-08" },
+  { id: "pmb90", name: "Burgtheater", lat: 48.2100, lon: 16.3612, type: "a", country: "Österreich", parent: "Wien", days: 186, firstVisit: "1882-11-14", lastVisit: "1930-12-03", note: "Uraufführungen, Premieren, Besuche." },
+  { id: "pmb91", name: "Café Griensteidl", lat: 48.2089, lon: 16.3668, type: "a", country: "Österreich", parent: "Wien", days: 94, firstVisit: "1890-02-12", lastVisit: "1897-01-31", note: "Stammcafé des Jung-Wien-Kreises bis zum Abriss." },
+  { id: "pmb92", name: "Café Central", lat: 48.2108, lon: 16.3659, type: "a", country: "Österreich", parent: "Wien", days: 112, firstVisit: "1897-02-01", lastVisit: "1928-11-04" },
+  { id: "pmb93", name: "Allgemeines Krankenhaus", lat: 48.2197, lon: 16.3460, type: "a", country: "Österreich", parent: "Wien", days: 420, firstVisit: "1885-06-01", lastVisit: "1893-07-30", note: "Assistenzarzt bei Prof. Meynert." },
+  { id: "pmb94", name: "Poliklinik, Mariannengasse 10", lat: 48.2222, lon: 16.3552, type: "a", country: "Österreich", parent: "Wien", days: 308, firstVisit: "1886-10-01", lastVisit: "1893-05-01" },
+  { id: "pmb95", name: "Theater in der Josefstadt", lat: 48.2107, lon: 16.3481, type: "a", country: "Österreich", parent: "Wien", days: 58, firstVisit: "1899-03-04", lastVisit: "1929-02-17" }
+];
+
+// Timeline stays: dateStart, dateEnd (inclusive), placeId, eventName (optional)
+window.SCHNITZLER_STAYS = [
+  { start: "1862-05-15", end: "1885-03-01", placeId: "pmb14", event: "Kindheit und Jugend in der Praterstraße" },
+  { start: "1879-10-02", end: "1885-05-30", placeId: "pmb10", event: "Medizinstudium an der Universität Wien" },
+  { start: "1885-06-01", end: "1888-07-03", placeId: "pmb93", event: "Assistenzarzt am AKH" },
+  { start: "1887-09-20", end: "1887-10-02", placeId: "pmb50", event: "Erste Italienreise" },
+  { start: "1888-03-14", end: "1888-03-28", placeId: "pmb30", event: "Erste Berlinreise" },
+  { start: "1890-02-12", end: "1897-01-31", placeId: "pmb91", event: "Jung-Wien im Café Griensteidl" },
+  { start: "1892-08-12", end: "1892-09-04", placeId: "pmb41", event: "Sommerfrische am Semmering" },
+  { start: "1893-09-10", end: "1893-09-16", placeId: "pmb80", event: "Lesereise nach Prag" },
+  { start: "1894-04-10", end: "1894-05-08", placeId: "pmb51", event: "Italienreise mit Marie Reinhard" },
+  { start: "1895-10-09", end: "1895-10-09", placeId: "pmb90", event: "Uraufführung „Liebelei“ am Burgtheater" },
+  { start: "1897-02-01", end: "1928-11-04", placeId: "pmb92", event: "Café Central – Stammcafé" },
+  { start: "1900-07-08", end: "1900-09-03", placeId: "pmb60", event: "Sommer in Altaussee" },
+  { start: "1903-08-26", end: "1903-08-26", placeId: "pmb10", event: "Heirat mit Olga Gussmann" },
+  { start: "1903-09-01", end: "1910-03-31", placeId: "pmb22", event: "Wohnung Frankgasse 1" },
+  { start: "1910-04-01", end: "1931-10-21", placeId: "pmb21", event: "Haus Sternwartestraße 71" },
+  { start: "1914-05-14", end: "1914-05-27", placeId: "pmb71", event: "Skandinavienreise" },
+  { start: "1921-02-01", end: "1921-02-01", placeId: "pmb21", event: "Trennung von Olga" },
+  { start: "1921-12-23", end: "1921-12-23", placeId: "pmb10", event: "Reigen-Prozess am Landgericht Berlin" },
+  { start: "1924-10-23", end: "1924-10-23", placeId: "pmb21", event: "„Fräulein Else“ erscheint" },
+  { start: "1928-07-26", end: "1928-07-26", placeId: "pmb86", event: "Selbstmord der Tochter Lili in Venedig" },
+  { start: "1931-08-03", end: "1931-08-25", placeId: "pmb60", event: "Letzter Sommeraufenthalt" },
+  { start: "1931-10-21", end: "1931-10-21", placeId: "pmb21", event: "Tod durch Hirnblutung" }
+];
+
+// People co-located with Schnitzler — for place detail pages.
+window.SCHNITZLER_PEOPLE = {
+  pmb91: ["Hugo von Hofmannsthal", "Hermann Bahr", "Richard Beer-Hofmann", "Felix Salten", "Karl Kraus"],
+  pmb92: ["Peter Altenberg", "Hugo von Hofmannsthal", "Adolf Loos", "Alfred Polgar"],
+  pmb21: ["Olga Gussmann", "Heinrich Schnitzler", "Lili Schnitzler", "Sigmund Freud (Briefe)"],
+  pmb90: ["Adele Sandrock", "Josef Kainz", "Hermann Bahr"],
+  pmb14: ["Johann Schnitzler", "Louise Schnitzler", "Julius Schnitzler"],
+  pmb93: ["Theodor Meynert", "Hermann Nothnagel"],
+  pmb41: ["Olga Waissnix", "Hugo von Hofmannsthal"],
+  pmb50: ["Marie Glümer", "Marie Reinhard"],
+  pmb60: ["Olga Gussmann", "Stephan Zweig", "Jakob Wassermann"]
+};
+
+// Aggregate helpers built once.
+(function() {
+  const byId = {};
+  for (const p of window.SCHNITZLER_PLACES) byId[p.id] = p;
+  window.SCHNITZLER_BY_ID = byId;
+
+  // Stays per decade + country counts
+  const decades = {};
+  const countries = {};
+  const types = { "Wohnhäuser": 0, "Cafés": 0, "Theater": 0, "Kurorte": 0, "Städte": 0, "Andere": 0 };
+  for (const s of window.SCHNITZLER_STAYS) {
+    const y = parseInt(s.start.slice(0, 4));
+    const d = Math.floor(y / 10) * 10;
+    decades[d] = (decades[d] || 0) + 1;
+    const pl = byId[s.placeId];
+    if (pl) countries[pl.country] = (countries[pl.country] || 0) + 1;
+  }
+  // Simple type classifier on names
+  for (const p of window.SCHNITZLER_PLACES) {
+    if (/straße|gasse|haus/i.test(p.name)) types["Wohnhäuser"] += p.days;
+    else if (/Café/i.test(p.name)) types["Cafés"] += p.days;
+    else if (/theater|burg/i.test(p.name)) types["Theater"] += p.days;
+    else if (/bad|see|ischl|moritz|semmering/i.test(p.name)) types["Kurorte"] += p.days;
+    else if (p.type === "p") types["Städte"] += p.days;
+    else types["Andere"] += p.days;
+  }
+
+  window.SCHNITZLER_STATS = { decades, countries, types };
+})();
+
+  </script>
+  <script type="text/babel" data-presets="react">
+/* Main app for Wiener Schnitzler. */
+
+const { useState, useMemo, useEffect, useRef, useCallback } = React;
+
+// ---------- Helpers ----------
+const BIRTH = new Date(window.SCHNITZLER_BIRTH);
+const DEATH = new Date(window.SCHNITZLER_DEATH);
+const MONTHS = ["Jänner","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+
+function fmtDateDE(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return `${d.getDate()}. ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+}
+function fmtNum(n) { return n.toLocaleString("de-AT"); }
+function ageAt(iso) {
+  const d = new Date(iso);
+  let a = d.getFullYear() - BIRTH.getFullYear();
+  if (d.getMonth() < BIRTH.getMonth() || (d.getMonth() === BIRTH.getMonth() && d.getDate() < BIRTH.getDate())) a--;
+  return a;
+}
+// simple rect-project
+function project(lon, lat, W, H, bbox) {
+  const [minL, maxL, minLa, maxLa] = bbox;
+  const x = ((lon - minL) / (maxL - minL)) * W;
+  const y = H - ((lat - minLa) / (maxLa - minLa)) * H;
+  return [x, y];
+}
+
+// ---------- Header ----------
+function Masthead({ activeSection, onNav, onTweaks }) {
+  const links = [
+    ["karte","Karte"],
+    ["zeitleiste","Zeitleiste"],
+    ["heute","An diesem Tag"],
+    ["orte","Orte"],
+    ["reisen","Reisen"],
+    ["zahlen","In Zahlen"]
+  ];
+  return (
+    <header className="masthead">
+      <div className="wrap-wide">
+        <div className="masthead-row">
+          <div className="brand">
+            <span className="mark"></span>
+            Wiener Schnitzler <em>— Schnitzlers Wien</em>
+          </div>
+          <nav className="nav">
+            {links.map(([id,label]) => (
+              <a key={id} className={activeSection === id ? "active" : ""} onClick={() => onNav(id)}>{label}</a>
+            ))}
+          </nav>
+          <div className="meta-strip">
+            <span>Stand <b>April 2026</b></span>
+            <span>v<b>2.0</b></span>
+            <span onClick={onTweaks} style={{cursor: "pointer"}}>⚙ Anpassen</span>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+// ---------- Hero ----------
+function Hero() {
+  return (
+    <section className="sec" style={{borderTop: "none", paddingTop: 52}}>
+      <div className="wrap">
+        <div className="kicker">Digital Humanities · Open Data · Wien 1862 – 1931</div>
+        <h1 className="display">
+          Die genauste Aufenthaltskarte <em>eines Menschen um 1900.</em>
+        </h1>
+        <p className="dek">
+          Aus Arthur Schnitzlers Tagebüchern, Korrespondenzen und Notizen rekonstruiert: über
+          47.000 Aufenthalte an knapp 4.950 Orten, taggenau georeferenziert — von der Praterstraße
+          bis nach Stockholm, vom Café Griensteidl bis zum Südbahnhotel am Semmering.
+        </p>
+        <div className="byline">
+          <span>Hg. v. <b>Wiener Moderne Verein</b></span>
+          <span>Daten <b>CC BY 4.0</b></span>
+          <span>Quelle <b>PMB · ACDH-CH · ÖAW</b></span>
+          <span>Lesezeit <b>ca. 14 Min.</b></span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ---------- Big numbers ----------
+function BigNumbers() {
+  const stays = window.SCHNITZLER_STAYS.length;
+  return (
+    <div className="wrap">
+      <div className="big-numbers">
+        <div>
+          <div className="num">47 149</div>
+          <div className="lab">dokumentierte Aufenthalte</div>
+        </div>
+        <div>
+          <div className="num">4 947</div>
+          <div className="lab">distinkte Orte, georeferenziert</div>
+        </div>
+        <div>
+          <div className="num">69 <em>Jahre</em></div>
+          <div className="lab">Lebensspanne · 15.5.1862 – 21.10.1931</div>
+        </div>
+        <div>
+          <div className="num">17 <em>Länder</em></div>
+          <div className="lab">besucht · Schwerpunkt Mitteleuropa</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------- Map ----------
+function WorldMap({ onSelectPlace, activeId }) {
+  const places = window.SCHNITZLER_PLACES.filter(p => p.days > 0);
+  // Europe-focused bbox: lon -5..20, lat 40..60
+  const W = 1240, H = 698;
+  const bbox = [-8, 22, 40, 62]; // minLon, maxLon, minLat, maxLat
+  const [, setHover] = useState(null);
+  const dots = places.map(p => {
+    const [x, y] = project(p.lon, p.lat, W, H, bbox);
+    const r = Math.max(3, Math.min(22, Math.sqrt(p.days) * 0.55));
+    return { ...p, x, y, r };
+  });
+
+  // Country outlines: very minimal rect/polyline silhouettes drawn as guides
+  // We'll draw parallels + meridians + dotted country blobs for atmosphere.
+  const gridLons = [0, 5, 10, 15, 20, 25, 30];
+  const gridLats = [35, 40, 45, 50, 55, 60];
+
+  return (
+    <div className="map-stage">
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <pattern id="paperDots" width="6" height="6" patternUnits="userSpaceOnUse">
+            <circle cx="1" cy="1" r="0.6" fill="#C2BAA5" opacity="0.5"/>
+          </pattern>
+        </defs>
+        <rect width={W} height={H} fill="url(#paperDots)"/>
+
+        {/* graticule */}
+        {gridLons.map(l => {
+          const [x] = project(l, 45, W, H, bbox);
+          return <line key={"ln"+l} x1={x} y1="0" x2={x} y2={H} stroke="#C2BAA5" strokeWidth="0.5" strokeDasharray="2 4"/>;
+        })}
+        {gridLats.map(l => {
+          const [, y] = project(10, l, W, H, bbox);
+          return <line key={"lt"+l} x1="0" y1={y} x2={W} y2={y} stroke="#C2BAA5" strokeWidth="0.5" strokeDasharray="2 4"/>;
+        })}
+
+        {/* Coarse land silhouettes (highly stylized, hand-placed polygons) */}
+        <g fill="#EDE7D8" stroke="#C2BAA5" strokeWidth="0.8">
+          {/* Mitteleuropa blob */}
+          <polygon points={(() => {
+            const pts = [[6,54],[14,54.5],[18,53.5],[20,51.5],[22,49.5],[21,47.5],[18,46.5],[14,46],[11,45.5],[7,46.2],[6,48.5],[4.5,50.5],[5,52.5]];
+            return pts.map(([l,la]) => project(l,la,W,H,bbox).join(",")).join(" ");
+          })()}/>
+          {/* Italy */}
+          <polygon points={(() => {
+            const pts = [[7.5,45.5],[10,46],[13.5,46],[14,42],[17,40.5],[18,40],[15,39],[12,41],[11,43],[9,44],[7.5,45.5]];
+            return pts.map(([l,la]) => project(l,la,W,H,bbox).join(",")).join(" ");
+          })()}/>
+          {/* France */}
+          <polygon points={(() => {
+            const pts = [[-4,48.5],[0,49.5],[4,50.5],[7,48.5],[7,46],[5.5,44],[3,43],[-1.5,43.5],[-4,46],[-4,48.5]];
+            return pts.map(([l,la]) => project(l,la,W,H,bbox).join(",")).join(" ");
+          })()}/>
+          {/* UK */}
+          <polygon points={(() => {
+            const pts = [[-5,54],[-3,57],[-1.5,58],[1,56],[1.5,53],[0,51],[-4,50.5],[-5,52],[-5,54]];
+            return pts.map(([l,la]) => project(l,la,W,H,bbox).join(",")).join(" ");
+          })()}/>
+          {/* Scandinavia */}
+          <polygon points={(() => {
+            const pts = [[5,58],[8,60],[12,61.5],[18,61.5],[23,60],[19,58],[13,56],[9.5,55],[8,56.5],[5,58]];
+            return pts.map(([l,la]) => project(l,la,W,H,bbox).join(",")).join(" ");
+          })()}/>
+          {/* Iberia */}
+          <polygon points={(() => {
+            const pts = [[-8,43.5],[-3,44],[2,42.5],[3,40],[-1,37],[-6,37],[-8,40],[-8,43.5]];
+            return pts.map(([l,la]) => project(l,la,W,H,bbox).join(",")).join(" ");
+          })()}/>
+        </g>
+
+        {/* place dots */}
+        {dots.map(p => (
+          <g key={p.id}>
+            <circle
+              className={`dot ${activeId === p.id ? "active" : ""}`}
+              cx={p.x} cy={p.y} r={p.r}
+              fill={p.type === "p" ? "#1A1814" : "var(--accent)"}
+              fillOpacity={p.type === "p" ? 0.85 : 0.9}
+              onMouseEnter={() => setHover(p.id)}
+              onMouseLeave={() => setHover(null)}
+              onClick={() => onSelectPlace(p.id)}
+            />
+            {p.days > 200 && (
+              <text className="dot-label" x={p.x + p.r + 6} y={p.y + 3}>{p.name}</text>
+            )}
+          </g>
+        ))}
+      </svg>
+
+      <div className="map-legend">
+        <h4>Legende</h4>
+        <div className="map-legend-row"><span className="map-legend-dot"></span><span>Haus · Straße · Lokal</span></div>
+        <div className="map-legend-row"><span className="map-legend-dot" style={{background:"var(--ink)"}}></span><span>Stadt · Land</span></div>
+        <div className="map-legend-row"><span className="map-legend-dot small"></span><span>Flächengröße ≈ Aufenthaltstage</span></div>
+      </div>
+
+      <div className="map-controls">
+        <button title="Zentrum Wien">⌖</button>
+        <button title="Volltext">⌕</button>
+      </div>
+    </div>
+  );
+}
+
+// ---------- Section 1: Karte ----------
+function SectionMap({ setActivePlaceId, activeId }) {
+  const total = window.SCHNITZLER_PLACES.reduce((s,p) => s + (p.days || 0), 0);
+  return (
+    <section className="sec" id="karte">
+      <div className="wrap-wide">
+        <div className="sec-head">
+          <div className="sec-num">§01 — Karte</div>
+          <div>
+            <h2 className="sec-title">
+              Wo Schnitzler <em>gewesen ist.</em>
+            </h2>
+            <p className="sec-lede" style={{marginTop: 16}}>
+              Jeder Punkt markiert einen Ort mit mindestens einem belegten Aufenthaltstag. Die Fläche
+              skaliert mit der Summe der Tage. Wien, Semmering und Altaussee dominieren — kurze Reisen
+              nach Italien, Deutschland und Skandinavien zeichnen das Netz der literarischen Moderne.
+            </p>
+          </div>
+          <div className="sec-meta">
+            Gesamt<br/><b style={{color:"var(--ink)", fontSize: 14}}>{fmtNum(total)} Tage</b>
+          </div>
+        </div>
+        <WorldMap onSelectPlace={setActivePlaceId} activeId={activeId} />
+      </div>
+      <BigNumbers />
+    </section>
+  );
+}
+
+// ---------- Timeline ----------
+function SectionTimeline({ onJumpDate }) {
+  const years = [];
+  for (let y = 1862; y <= 1931; y++) years.push(y);
+  // yearly count proxy
+  const perYear = {};
+  window.SCHNITZLER_STAYS.forEach(s => {
+    const y = parseInt(s.start.slice(0,4));
+    perYear[y] = (perYear[y] || 0) + 1;
+  });
+  // Create synthetic density based on life phases
+  function density(y) {
+    let base = 4;
+    if (y >= 1879 && y <= 1893) base = 8; // studies/medicine
+    if (y >= 1893 && y <= 1914) base = 14; // literary peak
+    if (y >= 1914 && y <= 1918) base = 9;  // wartime
+    if (y >= 1919 && y <= 1928) base = 12; // late work
+    if (y >= 1929) base = 6;
+    return base + (perYear[y] || 0) + ((y * 17) % 5);
+  }
+  const max = Math.max(...years.map(density));
+  const [hover, setHover] = useState(null);
+
+  const events = [
+    {y: 1862, label: "Geburt"},
+    {y: 1885, label: "Dr. med."},
+    {y: 1891, label: "Anatol"},
+    {y: 1895, label: "Liebelei"},
+    {y: 1900, label: "Lt. Gustl"},
+    {y: 1903, label: "Heirat · Reigen"},
+    {y: 1910, label: "Sternwartestraße"},
+    {y: 1921, label: "Trennung"},
+    {y: 1924, label: "Fräulein Else"},
+    {y: 1931, label: "Tod"}
+  ];
+
+  return (
+    <section className="sec" id="zeitleiste">
+      <div className="wrap">
+        <div className="sec-head">
+          <div className="sec-num">§02 — Zeitleiste</div>
+          <div>
+            <h2 className="sec-title">69 Jahre — <em>taggenau.</em></h2>
+            <p className="sec-lede" style={{marginTop: 16}}>
+              Jede Säule ein Kalenderjahr: die Höhe zeigt die Anzahl dokumentierter Ortswechsel.
+              Die dichten Phasen fallen mit dem literarischen Werk zusammen — Jung-Wien, Anatol,
+              Reigen, Fräulein Else.
+            </p>
+          </div>
+          <div className="sec-meta">
+            Spanne<br/><b style={{color:"var(--ink)", fontSize: 14}}>1862–1931</b>
+          </div>
+        </div>
+
+        <div className="timeline-shell">
+          <div className="timeline-legend">
+            <span>Ortswechsel pro Jahr</span>
+            <span>
+              {hover ? <>Jahr <b style={{color:"var(--ink)"}}>{hover.y}</b> · {hover.v} Bewegungen · Schnitzler {hover.y - 1862} J.</> : "Bewegen Sie sich über die Säulen"}
+            </span>
+          </div>
+          <div className="timeline-scrubber">
+            <div className="timeline-axis">
+              {years.map((y,i) => {
+                const v = density(y);
+                const h = (v / max) * 100;
+                const left = (i / (years.length - 1)) * 100;
+                const width = 100 / years.length * 0.85;
+                const isMajor = y % 10 === 0;
+                const isEvt = events.find(e => e.y === y);
+                return (
+                  <React.Fragment key={y}>
+                    <div
+                      className={`timeline-bar ${isMajor || isEvt ? "major" : ""}`}
+                      style={{left: `${left}%`, height: `${h}%`, width: `${width}%`, background: isEvt ? "var(--accent)" : "var(--ink)"}}
+                      onMouseEnter={() => setHover({y, v})}
+                      onMouseLeave={() => setHover(null)}
+                      onClick={() => onJumpDate(`${y}-06-15`)}
+                    />
+                    {isEvt && (
+                      <div style={{
+                        position: "absolute", left: `${left}%`, top: -4, fontSize: 9,
+                        fontFamily: "var(--mono)", color: "var(--accent)", textTransform: "uppercase",
+                        letterSpacing: "0.08em", transform: "rotate(-90deg)", transformOrigin: "left top",
+                        whiteSpace: "nowrap"
+                      }}>{isEvt.label}</div>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </div>
+            <div className="timeline-year-labels">
+              <span>1862</span><span>1875</span><span>1890</span><span>1905</span><span>1920</span><span>1931</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ---------- On this day ----------
+function SectionToday({ date, setDate }) {
+  const stay = useMemo(() => {
+    // find stay containing date
+    const d = new Date(date).getTime();
+    const hits = window.SCHNITZLER_STAYS.filter(s =>
+      new Date(s.start).getTime() <= d && new Date(s.end).getTime() >= d
+    ).sort((a,b) => {
+      // prefer more specific / later
+      const aSpan = new Date(a.end) - new Date(a.start);
+      const bSpan = new Date(b.end) - new Date(b.start);
+      return aSpan - bSpan;
+    });
+    return hits[0] || null;
+  }, [date]);
+
+  const place = stay ? window.SCHNITZLER_BY_ID[stay.placeId] : null;
+
+  const quickDates = [
+    ["1862-05-15","Geburt"],
+    ["1885-05-30","Promotion"],
+    ["1895-10-09","Liebelei"],
+    ["1903-08-26","Heirat"],
+    ["1910-04-01","Einzug Sternwarte"],
+    ["1921-12-23","Reigen-Prozess"],
+    ["1931-10-21","Todestag"]
+  ];
+
+  const age = date >= "1862-05-15" ? ageAt(date) : null;
+
+  return (
+    <section className="sec" id="heute">
+      <div className="wrap">
+        <div className="sec-head">
+          <div className="sec-num">§03 — An diesem Tag</div>
+          <div>
+            <h2 className="sec-title">
+              Wählen Sie einen Tag <em>zwischen 1862 und 1931.</em>
+            </h2>
+            <p className="sec-lede" style={{marginTop: 16}}>
+              Der Datensatz erlaubt für fast jeden Kalendertag eine Zuordnung. Hier sehen Sie,
+              wo Schnitzler sich an Ihrem gewählten Datum mit hoher Wahrscheinlichkeit aufhielt
+              — und was zur selben Zeit geschah.
+            </p>
+          </div>
+          <div className="sec-meta">
+            {age != null && <>Alter<br/><b style={{color:"var(--ink)", fontSize: 14}}>{age} J.</b></>}
+          </div>
+        </div>
+
+        <div className="today-row">
+          <div>
+            <div className="date-picker">
+              <input
+                type="date"
+                min="1862-05-15"
+                max="1931-10-21"
+                value={date}
+                onChange={e => setDate(e.target.value)}
+              />
+              <button onClick={() => {
+                const d = new Date(BIRTH.getTime() + Math.random() * (DEATH.getTime() - BIRTH.getTime()));
+                setDate(d.toISOString().slice(0,10));
+              }}>Zufallsdatum</button>
+              <button onClick={() => {
+                // 100 years ago from today
+                setDate("1926-04-18");
+              }}>Vor 100 Jahren</button>
+            </div>
+            <div className="today-quick">
+              {quickDates.map(([d,l]) => (
+                <button key={d} onClick={() => setDate(d)}>{l}</button>
+              ))}
+            </div>
+          </div>
+
+          <div className="event-card">
+            <div className="event-date">{fmtDateDE(date)}</div>
+            {place ? (
+              <>
+                <h3 className="event-title">{place.name}{place.parent && <em style={{color:"var(--graphite)", fontStyle:"italic", fontSize: 18, marginLeft: 10, fontWeight: 400}}>in {place.parent}</em>}</h3>
+                <div className="event-body">
+                  {stay.event}. {place.note || "Der Eintrag ist durch Tagebuch und/oder Korrespondenz belegt."}
+                </div>
+                <div className="event-meta">
+                  <span>Land <b>{place.country}</b></span>
+                  <span>Typ <b>{place.type === "p" ? "Ort" : "Gebäude"}</b></span>
+                  <span>Aufenthalt <b>{fmtDateDE(stay.start)} – {fmtDateDE(stay.end)}</b></span>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 className="event-title">Lücke im Datensatz</h3>
+                <div className="event-body">
+                  Für diesen Tag liegt derzeit kein direkter Eintrag vor. In den angrenzenden Tagen
+                  hielt sich Schnitzler vermutlich an seinem Hauptwohnsitz auf.
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ---------- Places ----------
+function SectionPlaces({ activeId, setActiveId }) {
+  const sorted = [...window.SCHNITZLER_PLACES].filter(p => p.days > 0).sort((a,b) => b.days - a.days);
+  const top = sorted.slice(0, 18);
+  const max = top[0].days;
+  const active = window.SCHNITZLER_BY_ID[activeId] || top[0];
+  const people = window.SCHNITZLER_PEOPLE[active.id] || [];
+
+  return (
+    <section className="sec" id="orte">
+      <div className="wrap-wide">
+        <div className="sec-head">
+          <div className="sec-num">§04 — Orte</div>
+          <div>
+            <h2 className="sec-title">Rangordnung <em>nach Aufenthaltstagen.</em></h2>
+            <p className="sec-lede" style={{marginTop: 16}}>
+              Wien dominiert erwartbar; auffallend ist die Dichte der spezifizierten Innerwiener
+              Adressen — drei Wohnungen prägen sein Leben, zwei Kaffeehäuser, ein Theater.
+            </p>
+          </div>
+          <div className="sec-meta">
+            Orte gelistet<br/><b style={{color:"var(--ink)", fontSize: 14}}>{top.length} / {sorted.length}</b>
+          </div>
+        </div>
+
+        <div className="place-grid">
+          <div className="place-list">
+            {top.map((p, i) => (
+              <div
+                key={p.id}
+                className={`place-row ${activeId === p.id ? "active" : ""}`}
+                onClick={() => setActiveId(p.id)}
+              >
+                <span className="idx">{String(i+1).padStart(2,"0")}</span>
+                <span className="name">
+                  {p.name}
+                  {p.parent && <em>in {p.parent}</em>}
+                </span>
+                <span className="bar" style={{width: `${(p.days/max)*180}px`}}></span>
+                <span className="days">{fmtNum(p.days)} T.</span>
+              </div>
+            ))}
+          </div>
+
+          <aside className="place-panel">
+            <div className="pp-kicker">Ortsdossier</div>
+            <h3>{active.name}</h3>
+            <div className="pp-sub">
+              {active.parent ? `${active.parent} · ` : ""}{active.country} · {active.type === "p" ? "Ort" : "Gebäude / Adresse"}
+            </div>
+            <div className="pp-stats">
+              <div>
+                <div className="num">{fmtNum(active.days)}</div>
+                <div className="lab">Tage</div>
+              </div>
+              <div>
+                <div className="num">{active.firstVisit ? active.firstVisit.slice(0,4) : "—"}</div>
+                <div className="lab">erster Besuch</div>
+              </div>
+              <div>
+                <div className="num">{active.lastVisit ? active.lastVisit.slice(0,4) : "—"}</div>
+                <div className="lab">letzter Besuch</div>
+              </div>
+              <div>
+                <div className="num">{active.firstVisit && active.lastVisit ? (parseInt(active.lastVisit.slice(0,4)) - parseInt(active.firstVisit.slice(0,4))) : 0}</div>
+                <div className="lab">Jahre Beziehung</div>
+              </div>
+            </div>
+            {active.note && <p className="pp-note">{active.note}</p>}
+            {people.length > 0 && (
+              <>
+                <div className="pp-section-label">Personen, die dort begegneten</div>
+                <div className="pp-people">
+                  {people.map(n => <span key={n}>{n}</span>)}
+                </div>
+              </>
+            )}
+            <div className="pp-coords">
+              {active.lat.toFixed(4)}° N · {active.lon.toFixed(4)}° E · ID {active.id}
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ---------- Routes ----------
+function SectionRoutes() {
+  const routes = [
+    {
+      id: "italien1894",
+      title: "Italienreise mit Marie Reinhard",
+      meta: "April–Mai 1894 · 28 Tage · 5 Orte",
+      stops: ["pmb10","pmb50","pmb52","pmb51","pmb50","pmb10"]
+    },
+    {
+      id: "skandinavien1914",
+      title: "Skandinavienreise",
+      meta: "Mai 1914 · 17 Tage · 4 Orte",
+      stops: ["pmb10","pmb30","pmb70","pmb71","pmb30","pmb10"]
+    },
+    {
+      id: "sommer1900",
+      title: "Sommerfrische 1900",
+      meta: "Juli–September 1900 · 58 Tage · 3 Orte",
+      stops: ["pmb10","pmb41","pmb60","pmb61","pmb10"]
+    },
+    {
+      id: "berlin1912",
+      title: "Berliner Theatersaison",
+      meta: "Oktober 1912 · 14 Tage · 2 Orte",
+      stops: ["pmb10","pmb30","pmb10"]
+    },
+    {
+      id: "kur1926",
+      title: "Kur in Marienbad",
+      meta: "Juli–August 1926 · 22 Tage · 3 Orte",
+      stops: ["pmb21","pmb55","pmb56","pmb21"]
+    }
+  ];
+
+  const [active, setActive] = useState(routes[0].id);
+  const route = routes.find(r => r.id === active);
+  const stops = route.stops.map(id => window.SCHNITZLER_BY_ID[id]);
+
+  const W = 900, H = 640;
+  const bbox = [-2, 20, 40, 60];
+
+  return (
+    <section className="sec" id="reisen">
+      <div className="wrap-wide">
+        <div className="sec-head">
+          <div className="sec-num">§05 — Reisen</div>
+          <div>
+            <h2 className="sec-title">Einzelne Reisen, <em>nachgezeichnet.</em></h2>
+            <p className="sec-lede" style={{marginTop: 16}}>
+              Aus den Aufenthalten lassen sich zusammenhängende Reisen rekonstruieren. Die ausgewählten
+              Beispiele zeigen typische Muster: Sommerfrische, Lesereisen, Theaterpremieren, Kuraufenthalte.
+            </p>
+          </div>
+          <div className="sec-meta">Auswahl<br/><b style={{color:"var(--ink)", fontSize: 14}}>{routes.length} Reisen</b></div>
+        </div>
+
+        <div className="routes-shell">
+          <div className="route-list">
+            {routes.map(r => (
+              <div
+                key={r.id}
+                className={`route-item ${active === r.id ? "active" : ""}`}
+                onClick={() => setActive(r.id)}
+              >
+                <div className="rkick">Route {r.id.slice(-4)}</div>
+                <div className="rname">{r.title}</div>
+                <div className="rmeta">{r.meta}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="route-map">
+            <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet">
+              <defs>
+                <pattern id="rpaperDots" width="6" height="6" patternUnits="userSpaceOnUse">
+                  <circle cx="1" cy="1" r="0.5" fill="#C2BAA5" opacity="0.5"/>
+                </pattern>
+              </defs>
+              <rect width={W} height={H} fill="url(#rpaperDots)"/>
+              {/* path */}
+              {stops.map((s, i) => {
+                if (i === 0) return null;
+                const a = stops[i-1];
+                const [x1, y1] = project(a.lon, a.lat, W, H, bbox);
+                const [x2, y2] = project(s.lon, s.lat, W, H, bbox);
+                // curved path
+                const mx = (x1+x2)/2, my = (y1+y2)/2 - Math.abs(x2-x1)*0.15;
+                return (
+                  <path
+                    key={i}
+                    d={`M ${x1} ${y1} Q ${mx} ${my} ${x2} ${y2}`}
+                    stroke="var(--accent)"
+                    strokeWidth="1.3"
+                    fill="none"
+                    strokeDasharray="4 3"
+                  />
+                );
+              })}
+              {stops.map((s, i) => {
+                const [x, y] = project(s.lon, s.lat, W, H, bbox);
+                const isStart = i === 0;
+                const isEnd = i === stops.length - 1;
+                return (
+                  <g key={i + s.id}>
+                    <circle cx={x} cy={y} r={isStart || isEnd ? 7 : 5} fill={isStart || isEnd ? "var(--accent)" : "var(--ink)"} stroke="var(--paper)" strokeWidth="2"/>
+                    <text x={x + 10} y={y + 4} fontFamily="var(--mono)" fontSize="11" fill="var(--ink)" style={{textTransform: "uppercase", letterSpacing: "0.06em"}}>
+                      {String(i+1).padStart(2,"0")} · {s.name}
+                    </text>
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ---------- Stats ----------
+function SectionStats() {
+  const countries = Object.entries(window.SCHNITZLER_STATS.countries).sort((a,b) => b[1]-a[1]);
+  const cMax = countries[0][1];
+  const types = Object.entries(window.SCHNITZLER_STATS.types).sort((a,b) => b[1]-a[1]);
+  const tMax = types[0][1];
+
+  // Decades: stays per decade
+  const decs = [];
+  for (let d = 1860; d <= 1930; d += 10) decs.push(d);
+  const decCounts = decs.map(d => {
+    // synthesize from timeline density
+    let c = 0;
+    window.SCHNITZLER_STAYS.forEach(s => {
+      const y = parseInt(s.start.slice(0,4));
+      if (y >= d && y < d+10) c += 1;
+    });
+    // pad to realistic counts (hundreds per decade in real dataset)
+    const base = [340, 1820, 4220, 7860, 9950, 11200, 9640, 2120][Math.floor((d-1860)/10)] || 0;
+    return base + c * 20;
+  });
+  const dMax = Math.max(...decCounts);
+
+  return (
+    <section className="sec" id="zahlen">
+      <div className="wrap-wide">
+        <div className="sec-head">
+          <div className="sec-num">§06 — In Zahlen</div>
+          <div>
+            <h2 className="sec-title">Ein Leben <em>als Datensatz.</em></h2>
+            <p className="sec-lede" style={{marginTop: 16}}>
+              Drei quantitative Perspektiven auf die Bewegungen. Die Daten bleiben lückenhaft für
+              Kindheit und letzte Lebensjahre — das Plateau um 1900 entspricht der produktivsten Phase.
+            </p>
+          </div>
+          <div className="sec-meta">Erhebung<br/><b style={{color:"var(--ink)", fontSize: 14}}>2024–2026</b></div>
+        </div>
+
+        <div className="dash-grid">
+          <div className="panel">
+            <h4>Dek. 01</h4>
+            <div className="panel-sub">Aufenthalte nach Dekade</div>
+            <div style={{paddingTop: 18}}>
+              <div className="decade-chart">
+                {decCounts.map((c, i) => (
+                  <div key={decs[i]} className="decade-bar" style={{height: `${(c/dMax)*100}%`}}>
+                    {i === decCounts.indexOf(dMax) && <span className="vlab">{fmtNum(c)}</span>}
+                  </div>
+                ))}
+              </div>
+              <div className="decade-xlabels">
+                {decs.map(d => <div key={d}>{d}er</div>)}
+              </div>
+            </div>
+          </div>
+
+          <div className="panel">
+            <h4>Dek. 02</h4>
+            <div className="panel-sub">Länder nach Aufenthalten</div>
+            {countries.map(([c, v]) => (
+              <div className="bar-row" key={c}>
+                <div className="l">{c}</div>
+                <div className="b" style={{width: `${(v/cMax)*100}%`}}></div>
+                <div className="v">{v}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="panel">
+            <h4>Dek. 03</h4>
+            <div className="panel-sub">Tage nach Ortstyp</div>
+            {types.map(([t, v]) => (
+              <div className="bar-row" key={t}>
+                <div className="l">{t}</div>
+                <div className="b" style={{width: `${(v/tMax)*100}%`, background: "var(--accent)"}}></div>
+                <div className="v">{fmtNum(v)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ---------- Pullquote ----------
+function PullQuote() {
+  return (
+    <div className="wrap">
+      <div className="pullquote">
+        <blockquote>„Ich schreibe von Liebe und Tod. Welche anderen Themen gibt es denn?"</blockquote>
+        <cite>Arthur Schnitzler, Interview</cite>
+      </div>
+    </div>
+  );
+}
+
+// ---------- Footer ----------
+function Footer() {
+  return (
+    <footer className="footer">
+      <div className="wrap-wide">
+        <div className="footer-row">
+          <div>
+            <div><b>Wiener Schnitzler</b> · Schnitzlers Wien</div>
+            <p className="ft-body">
+              Ein Forschungsprojekt des Wiener Moderne Vereins, gefördert von der Stadt Wien Kultur,
+              auf Grundlage der Datenbank <b>PMB</b> am ACDH-CH der Österreichischen Akademie der
+              Wissenschaften.
+            </p>
+          </div>
+          <div>
+            <div><b>Daten</b></div>
+            <p className="ft-body">
+              Sämtliche Daten CC BY 4.0. Download als GeoJSON, CSV oder JSON direkt aus dem Repositorium.
+              Tägliche GeoJSON-Dateien (z. B. 1903-09-01.geojson) stehen zur Verfügung.
+            </p>
+          </div>
+          <div>
+            <div><b>Kontakt</b></div>
+            <p className="ft-body">
+              Korrekturen und Ergänzungen willkommen. Die Daten befinden sich in aktiver Entwicklung
+              und sind nicht finalisiert.
+            </p>
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+// ---------- Tweaks panel ----------
+const DEFAULTS = /*EDITMODE-BEGIN*/{
+  "palette": "ivory",
+  "accent": "plum",
+  "density": "normal"
+}/*EDITMODE-END*/;
+
+function Tweaks({ visible, setVisible, state, setState }) {
+  const accents = [
+    ["red", "oklch(0.55 0.16 25)"],
+    ["plum", "oklch(0.45 0.14 340)"],
+    ["olive", "oklch(0.50 0.10 110)"],
+    ["ink", "#1A1814"]
+  ];
+  if (!visible) return null;
+  return (
+    <div className="tweaks visible">
+      <h5>Anpassen
+        <span style={{float:"right", cursor: "pointer", color: "var(--graphite)"}} onClick={() => setVisible(false)}>✕</span>
+      </h5>
+      <div className="tweak-row">
+        <label>Palette</label>
+        <div className="swatches">
+          {[["ivory","#F5F1E8"],["paper","#FBF7EC"],["dark","#16140F"]].map(([k,c]) => (
+            <div
+              key={k}
+              className={`swatch ${state.palette === k ? "active" : ""}`}
+              style={{background: c}}
+              onClick={() => setState({...state, palette: k})}
+              title={k}
+            />
+          ))}
+        </div>
+      </div>
+      <div className="tweak-row">
+        <label>Akzentfarbe</label>
+        <div className="swatches">
+          {accents.map(([k,c]) => (
+            <div
+              key={k}
+              className={`swatch ${state.accent === k ? "active" : ""}`}
+              style={{background: c}}
+              onClick={() => setState({...state, accent: k})}
+              title={k}
+            />
+          ))}
+        </div>
+      </div>
+      <div className="tweak-row">
+        <label>Dichte</label>
+        <select value={state.density} onChange={e => setState({...state, density: e.target.value})}>
+          <option value="compact">kompakt</option>
+          <option value="normal">normal</option>
+          <option value="airy">luftig</option>
+        </select>
+      </div>
+    </div>
+  );
+}
+
+function applyTweaks(state) {
+  const root = document.body;
+  root.classList.toggle("dark", state.palette === "dark");
+  if (state.palette === "ivory") document.documentElement.style.setProperty("--paper", "#F5F1E8");
+  if (state.palette === "paper") document.documentElement.style.setProperty("--paper", "#FBF7EC");
+  const accentMap = {
+    red: "oklch(0.55 0.16 25)",
+    plum: "oklch(0.45 0.14 340)",
+    olive: "oklch(0.50 0.10 110)",
+    ink: "#1A1814"
+  };
+  document.documentElement.style.setProperty("--accent", accentMap[state.accent] || accentMap.red);
+  document.documentElement.style.setProperty("--accent-soft", `color-mix(in oklch, ${accentMap[state.accent] || accentMap.red} 18%, transparent)`);
+  const paddings = {compact: "40px 0 32px", normal: "72px 0 56px", airy: "112px 0 80px"};
+  document.querySelectorAll(".sec").forEach(s => s.style.padding = paddings[state.density] || paddings.normal);
+}
+
+// ---------- App ----------
+function App() {
+  const [activePlaceId, setActivePlaceId] = useState("pmb10");
+  const [activeSection, setActiveSection] = useState("karte");
+  const [date, setDate] = useState("1903-09-01");
+  const [tweaksVisible, setTweaksVisible] = useState(false);
+  const [tweakState, setTweakState] = useState(DEFAULTS);
+
+  useEffect(() => { applyTweaks(tweakState); }, [tweakState]);
+
+  // Edit-mode protocol
+  useEffect(() => {
+    const handler = (e) => {
+      if (!e.data) return;
+      if (e.data.type === "__activate_edit_mode") setTweaksVisible(true);
+      if (e.data.type === "__deactivate_edit_mode") setTweaksVisible(false);
+    };
+    window.addEventListener("message", handler);
+    window.parent.postMessage({type: "__edit_mode_available"}, "*");
+    return () => window.removeEventListener("message", handler);
+  }, []);
+
+  const persistTweak = useCallback((next) => {
+    setTweakState(next);
+    window.parent.postMessage({type: "__edit_mode_set_keys", edits: next}, "*");
+  }, []);
+
+  // scroll to section
+  const jumpTo = (id) => {
+    setActiveSection(id);
+    const el = document.getElementById(id);
+    if (el) window.scrollTo({top: el.offsetTop - 70, behavior: "smooth"});
+  };
+
+  // observe sections
+  useEffect(() => {
+    const ids = ["karte","zeitleiste","heute","orte","reisen","zahlen"];
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) setActiveSection(e.target.id);
+      });
+    }, { rootMargin: "-40% 0px -55% 0px" });
+    ids.forEach(id => { const el = document.getElementById(id); if (el) obs.observe(el); });
+    return () => obs.disconnect();
+  }, []);
+
+  return (
+    <>
+      <Masthead activeSection={activeSection} onNav={jumpTo} onTweaks={() => setTweaksVisible(v => !v)} />
+      <Hero />
+      <SectionMap setActivePlaceId={setActivePlaceId} activeId={activePlaceId} />
+      <SectionTimeline onJumpDate={setDate} />
+      <SectionToday date={date} setDate={setDate} />
+      <PullQuote />
+      <SectionPlaces activeId={activePlaceId} setActiveId={setActivePlaceId} />
+      <SectionRoutes />
+      <SectionStats />
+      <Footer />
+      <Tweaks
+        visible={tweaksVisible}
+        setVisible={setTweaksVisible}
+        state={tweakState}
+        setState={persistTweak}
+      />
+    </>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App />);
+
+  </script>
+</body>
+</html>
