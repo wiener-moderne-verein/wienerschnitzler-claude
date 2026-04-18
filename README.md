@@ -6,43 +6,49 @@ Eine datenjournalistische Website zu Arthur Schnitzlers (1862–1931) Aufenthalt
 
 ## Features
 
-- **Karte** — alle besuchten Orte als proportionale Punkte auf stilisierter Europakarte
-- **Zeitleiste** — 69 Jahre Bewegungsdichte mit literarischen Meilensteinen
+- **Karte** — alle 4 876 Orte als proportionale Punkte auf einer echten Leaflet-Weltkarte (CARTO Positron, monochrom getönt)
+- **Zeitleiste** — 69 Jahre Bewegungsdichte aus 48 062 dokumentierten Aufenthalten
 - **An diesem Tag** — Datumspicker für jeden Tag zwischen 1862 und 1931, inkl. „Vor 100 Jahren"
-- **Orte** — Rangliste der meistbesuchten Orte mit Detaildossier und begegneten Personen
-- **Reisen** — rekonstruierte Einzelreisen (Italien 1894, Skandinavien 1914, …)
-- **In Zahlen** — Aufenthalte nach Dekade, Land und Ortstyp
+- **Orte** — Rangliste der meistbesuchten Orte mit Detaildossier, PMB-Link und begegneten Personen
+- **Reisen** — automatisch aus dem Datensatz extrahierte Reisen außerhalb Wiens, gerendert als Leaflet-Route
+- **In Zahlen** — Belege nach Dekade, Land und Ortstyp aus den Echtdaten
 
 ## Projektstruktur
 
 ```
 .
-├── index.html              # fertig gebaute Single-Page-Version (inline CSS + JSX)
+├── index.html              # gebaute Single-Page-Version (CSS + JSX inline; data/schnitzler.js extern)
 ├── app.jsx                 # React-Hauptkomponente (Entwicklung)
 ├── styles.css              # Typ- und Layout-System (Entwicklung)
 ├── data/
-│   ├── schnitzler.js       # gebündelter Datensatz (wird durch Workflow überschrieben)
-│   └── source/             # rohe Upstream-Dateien (durch Workflow gefüllt)
-│       ├── wienerschnitzler_timeline.json
-│       ├── uebersicht.json
-│       └── indices/
-│           ├── listplace.xml
-│           └── partOf.xml
+│   ├── schnitzler.js       # gebündelter Datensatz (~3 MB · gzip ~440 kB · vom Workflow überschrieben)
+│   └── source/             # rohe Upstream-Dateien (gitignored, vom Workflow gefüllt)
+│       ├── editions/json/wienerschnitzler_timeline.json
+│       ├── editions/json/uebersicht.json
+│       └── indices/{listplace.xml, partOf.xml, living-working-in.xml}
 ├── scripts/
-│   └── build-data.mjs      # transformiert Upstream-Daten → data/schnitzler.js
+│   ├── build-data.mjs      # parst TEI/JSON → data/schnitzler.js
+│   └── build-index.mjs     # baut index.html (Leaflet-CDN, externes data/schnitzler.js)
 └── .github/workflows/
-    ├── sync-data.yml       # täglicher Datenabgleich
+    ├── sync-data.yml       # täglicher Datenabgleich + Rebuild
     └── pages.yml           # GitHub-Pages-Deploy
 ```
 
 ## Lokale Entwicklung
 
-Einfach `index.html` im Browser öffnen — keine Build-Schritte nötig. Für Entwicklung gegen
-die Quellen `app.jsx` und `styles.css` bauen:
+Voraussetzung: laufende Quelldaten unter `data/source/` (siehe Workflow oder einmalig per
+`bash` aus dem sync-data-Workflow ziehen). Anschließend:
 
 ```bash
-npm run build   # erzeugt index.html aus app.jsx + styles.css
+npm run build   # build-data.mjs → data/schnitzler.js, dann build-index.mjs → index.html
 ```
+
+Da `data/schnitzler.js` extern eingebunden wird, muss `index.html` über einen lokalen
+HTTP-Server geöffnet werden (z. B. `python3 -m http.server`); ein direkter `file://`-
+Aufruf funktioniert nicht, weil moderne Browser cross-origin Skripte dort blockieren.
+
+Externe Abhängigkeiten zur Laufzeit (alle per CDN, kein Build-Tooling nötig):
+React 18, ReactDOM, @babel/standalone (JSX in-Browser), **Leaflet 1.9.4** + CARTO-Tiles.
 
 ## Daten-Workflow
 
