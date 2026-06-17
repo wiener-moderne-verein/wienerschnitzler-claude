@@ -1,9 +1,6 @@
 name: Sync upstream data
 
 on:
-  schedule:
-    # Täglich um 04:00 UTC — nach Upstream-Builds.
-    - cron: "0 4 * * *"
   workflow_dispatch:
   push:
     paths:
