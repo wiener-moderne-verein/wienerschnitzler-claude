@@ -16,7 +16,12 @@ jobs:
     runs-on: ubuntu-latest
     env:
       UPSTREAM_REPO: wiener-moderne-verein/wienerschnitzler-data
-      UPSTREAM_BRANCH: main
+      # Ergebnisdaten (editions/json/*) liegen seit der Pipeline-Umstellung
+      # nicht mehr auf 'main', sondern werden bei jedem Upstream-Lauf per
+      # Force-Push auf den Branch 'data' neu erzeugt. Der 'data'-Branch
+      # enthält auch die benötigten indices/*-Dateien. Siehe
+      # FRONTEND-MIGRATION.md im Upstream-Repo.
+      UPSTREAM_BRANCH: data
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -35,7 +40,6 @@ jobs:
         run: |
           BASE="https://raw.githubusercontent.com/${UPSTREAM_REPO}/${UPSTREAM_BRANCH}/data"
           curl -fsSL "$BASE/editions/json/wienerschnitzler_timeline.json" -o data/source/editions/json/wienerschnitzler_timeline.json
-          curl -fsSL "$BASE/editions/json/uebersicht.json"                -o data/source/editions/json/uebersicht.json || true
           curl -fsSL "$BASE/indices/listplace.xml"                        -o data/source/indices/listplace.xml
           curl -fsSL "$BASE/indices/partOf.xml"                           -o data/source/indices/partOf.xml || true
           curl -fsSL "$BASE/indices/living-working-in.xml"                -o data/source/indices/living-working-in.xml || true
